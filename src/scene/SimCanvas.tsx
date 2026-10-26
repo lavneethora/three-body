@@ -1,7 +1,7 @@
 "use client";
 
 import { Canvas } from "@react-three/fiber";
-import { OrbitControls } from "@react-three/drei";
+import { OrbitControls, Preload } from "@react-three/drei";
 import * as THREE from "three";
 import { useSimStore } from "@/state/useSimStore";
 import { sceneRefs, type ControlsHandle } from "@/sim/sceneRefs";
@@ -37,8 +37,9 @@ export function SimCanvas() {
        */
       gl={{
         antialias: quality !== "performance",
-        // Tone mapping happens at the end of the effect chain instead, so
-        // bloom gets the full dynamic range the star shaders write.
+        // Tone mapping runs at the end of the effect chain instead, so bloom
+        // sees the full dynamic range the star shaders write before anything
+        // is compressed into display values.
         toneMapping: THREE.NoToneMapping,
       }}
       dpr={quality === "performance" ? 1 : [1, 2]}
@@ -57,6 +58,16 @@ export function SimCanvas() {
         <Bodies />
         <Trails />
       </group>
+      {/*
+        Compile every material up front.
+
+        These shaders are heavy: six octaves of domain-warped noise per star,
+        plus the planet surfaces, atmospheres and the eclipse loop. three.js
+        compiles a material the first time it is drawn, so without this the
+        opening seconds after loading a system drop frames and show bodies
+        before their shaders are ready, which reads as the scene flickering.
+      */}
+      <Preload all />
       <Effects />
       <OrbitControls
         ref={(c) => {
