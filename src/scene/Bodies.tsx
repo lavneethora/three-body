@@ -106,8 +106,18 @@ function StarBody({ spec, index, radius, quality }: {
 
   return (
     <>
-      {/* Corona billboard, drawn behind the disc. */}
-      <mesh ref={glowRef} renderOrder={-1}>
+      {/*
+        Corona billboard, drawn before the disc.
+
+        Depth testing is off deliberately. This is a flat quad centred on the
+        star, so with depth testing on, half of it sits inside the sphere and
+        z-fights with it: rotating the camera makes the two surfaces trade
+        places pixel by pixel and the star appears to blink. Drawing it first
+        with no depth test puts it cleanly behind, and anything genuinely in
+        front still covers it, because everything else is drawn afterwards
+        and does test depth.
+      */}
+      <mesh ref={glowRef} renderOrder={-1} frustumCulled={false}>
         <planeGeometry args={[1, 1]} />
         <shaderMaterial
           ref={glowMatRef}
@@ -116,6 +126,7 @@ function StarBody({ spec, index, radius, quality }: {
           uniforms={glowUniforms}
           transparent
           depthWrite={false}
+          depthTest={false}
           blending={THREE.AdditiveBlending}
         />
       </mesh>
