@@ -1,6 +1,7 @@
 "use client";
 
 import { useSimStore, type Quality } from "@/state/useSimStore";
+import { ShareButton } from "./ShareButton";
 
 const SPEEDS = [1, 10, 60, 200, 600, 2000];
 
@@ -22,7 +23,7 @@ export function TimeControls() {
   const setQuality = useSimStore((s) => s.setQuality);
 
   return (
-    <div className="panel-dark flex items-center gap-2 px-3 py-2">
+    <div className="panel-dark flex flex-wrap items-center justify-end gap-2 px-3 py-2">
       <button className="btn btn-ghost" onClick={toggleRunning}>
         {running ? "Pause" : "Play"}
       </button>
@@ -43,7 +44,7 @@ export function TimeControls() {
             {s >= 1000 ? `${s / 1000}k` : s}
           </button>
         ))}
-        <span className="ml-1 text-[11px] text-white/40">days / sec</span>
+        <span className="ml-1 whitespace-nowrap text-[11px] text-white/40">days / sec</span>
       </div>
 
       <div className="mx-1 h-7 w-px bg-white/10" />
@@ -54,6 +55,10 @@ export function TimeControls() {
       >
         Trails
       </button>
+
+      <div className="mx-1 h-7 w-px bg-white/10" />
+
+      <ShareButton />
 
       <div className="mx-1 h-7 w-px bg-white/10" />
 
