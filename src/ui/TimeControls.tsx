@@ -1,8 +1,14 @@
 "use client";
 
-import { useSimStore } from "@/state/useSimStore";
+import { useSimStore, type Quality } from "@/state/useSimStore";
 
 const SPEEDS = [1, 10, 60, 200, 600, 2000];
+
+const QUALITIES: Array<{ id: Quality; label: string; hint: string }> = [
+  { id: "cinematic", label: "Cinematic", hint: "Full shaders, bloom and eclipses" },
+  { id: "balanced", label: "Balanced", hint: "Bloom only, lighter shaders" },
+  { id: "performance", label: "Fast", hint: "No post-processing, for weaker devices" },
+];
 
 export function TimeControls() {
   const running = useSimStore((s) => s.running);
@@ -12,6 +18,8 @@ export function TimeControls() {
   const setDaysPerSecond = useSimStore((s) => s.setDaysPerSecond);
   const showTrails = useSimStore((s) => s.showTrails);
   const toggleTrails = useSimStore((s) => s.toggleTrails);
+  const quality = useSimStore((s) => s.quality);
+  const setQuality = useSimStore((s) => s.setQuality);
 
   return (
     <div className="panel-dark flex items-center gap-2 px-3 py-2">
@@ -46,6 +54,21 @@ export function TimeControls() {
       >
         Trails
       </button>
+
+      <div className="mx-1 h-7 w-px bg-white/10" />
+
+      <div className="flex items-center gap-1">
+        {QUALITIES.map((q) => (
+          <button
+            key={q.id}
+            className={`chip ${quality === q.id ? "chip-active" : ""}`}
+            onClick={() => setQuality(q.id)}
+            title={q.hint}
+          >
+            {q.label}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
