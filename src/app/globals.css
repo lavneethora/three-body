@@ -174,6 +174,26 @@ body {
   }
 }
 
+/* Keep clear of notches and home indicators. */
+.safe-bottom {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+.safe-top {
+  padding-top: max(0.75rem, env(safe-area-inset-top));
+}
+
+/* A horizontal strip of controls that can be swiped on a phone. */
+.scroll-x {
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.scroll-x::-webkit-scrollbar {
+  display: none;
+}
+
 /* The canvas owns all pointer input; overlays opt back in individually. */
 .overlay {
   pointer-events: none;
