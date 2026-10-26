@@ -1,0 +1,184 @@
+@import "tailwindcss";
+
+/*
+ * Tokens from the poke.com design system, adapted for an app whose main
+ * surface is deep space.
+ *
+ * The cream palette is kept for the UI chrome: warm panels floating over a
+ * black starfield read as a deliberate instrument rather than as yet another
+ * dark dashboard. Where text sits on dark, poke's rule of black-at-opacity
+ * inverts cleanly to white-at-opacity, so the same scale still applies.
+ */
+:root {
+  --bg: #fffdfa;
+  --surface: #eeebe6;
+  --card: #ffffff;
+  --card-border: #e2e1de;
+  --border: #c7c7c7;
+  --neutral-border: #eeeded;
+  --button-dark-from: #3a3a3a;
+  --button-dark-to: #353535;
+  --button-ring: #c9c7c4;
+
+  --void: #05060a;
+  --panel: rgba(255, 253, 250, 0.93);
+  --panel-dark: rgba(14, 15, 22, 0.82);
+
+  --radius-btn: 14px;
+  --radius-card: 24px;
+  --radius-panel: 16px;
+  --radius-sm: 10px;
+
+  --shadow-1: 0 2px 4px rgba(0, 0, 0, 0.05);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.035), 0 3px 8px rgba(0, 0, 0, 0.035),
+    0 8px 28px rgba(0, 0, 0, 0.043);
+  --shadow-btn: 0 0.5px 1px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.1),
+    0 4px 12px rgba(0, 0, 0, 0.08), inset 0 0 0 1.25px rgb(53, 53, 53),
+    inset 0 0 12px rgba(255, 255, 255, 0.1);
+  --shadow-btn-light: 0 0.5px 1px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.06),
+    0 4px 12px rgba(0, 0, 0, 0.04), inset 0 0 0 1.25px var(--button-ring),
+    inset 0 0 12.2px rgb(255, 255, 255);
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--void);
+  color: #fff;
+  overscroll-behavior: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Display type: tight tracking is what carries poke's character here, since
+   the original Exposure face is licensed and not shipped with this project. */
+.display {
+  letter-spacing: -0.04em;
+  font-weight: 600;
+  line-height: 1;
+}
+
+@layer components {
+  .panel {
+    background: var(--panel);
+    border-radius: var(--radius-panel);
+    box-shadow: var(--shadow-card);
+    color: #000;
+    backdrop-filter: blur(16px);
+  }
+
+  .panel-dark {
+    background: var(--panel-dark);
+    border-radius: var(--radius-panel);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #fff;
+    backdrop-filter: blur(16px);
+  }
+
+  /* Depth from layered inset shadows rather than a solid border, which is
+     the single most characteristic thing about the poke buttons. */
+  .btn {
+    height: 40px;
+    padding: 0 16px;
+    border-radius: var(--radius-btn);
+    font-size: 15px;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: transform 0.15s ease-out, filter 0.15s ease-out;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .btn:active {
+    transform: scale(0.98);
+  }
+
+  .btn-primary {
+    background: linear-gradient(180deg, var(--button-dark-from), var(--button-dark-to));
+    color: #fff;
+    text-shadow: 0 0.5px 0 rgba(0, 0, 0, 0.5);
+    box-shadow: var(--shadow-btn);
+  }
+
+  .btn-primary:hover {
+    filter: brightness(1.12);
+  }
+
+  .btn-secondary {
+    background: transparent;
+    color: #1c1c1c;
+    box-shadow: var(--shadow-btn-light);
+  }
+
+  .btn-secondary:hover {
+    filter: brightness(0.97);
+  }
+
+  .btn-ghost {
+    color: rgba(255, 255, 255, 0.72);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .btn-ghost:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  .chip {
+    height: 34px;
+    padding: 0 14px;
+    border-radius: 9999px;
+    font-size: 13px;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    white-space: nowrap;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  .chip:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.11);
+  }
+
+  .chip-active {
+    background: var(--bg);
+    color: #000;
+    border-color: transparent;
+    box-shadow: var(--shadow-1);
+  }
+
+  .readout-label {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.45);
+  }
+
+  .readout-value {
+    font-variant-numeric: tabular-nums;
+    font-size: 15px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.95);
+  }
+}
+
+/* The canvas owns all pointer input; overlays opt back in individually. */
+.overlay {
+  pointer-events: none;
+}
+
+.overlay > * {
+  pointer-events: auto;
+}
