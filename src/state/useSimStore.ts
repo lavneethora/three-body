@@ -28,6 +28,10 @@ interface SimStore {
   /** Multiplier on physical radii, for rendering only. */
   exaggeration: number;
   selectedId: string | null;
+  /** Body the camera keeps centred, or null for the barycentre. */
+  focusId: string | null;
+  /** Bumped on every focus request, which triggers a camera reframe. */
+  focusNonce: number;
   /** Incremented on every system rebuild, so scene children remount. */
   epoch: number;
 
@@ -42,6 +46,7 @@ interface SimStore {
   addBody: (body: BodySpec) => void;
   removeBody: (id: string) => void;
   select: (id: string | null) => void;
+  setFocus: (id: string | null) => void;
   setQuality: (q: Quality) => void;
   setExaggeration: (v: number) => void;
   toggleTrails: () => void;
@@ -67,6 +72,8 @@ export const useSimStore = create<SimStore>((set, get) => ({
   showLabels: true,
   exaggeration: 25,
   selectedId: null,
+  focusId: null,
+  focusNonce: 0,
   epoch: 0,
 
   loadPreset: (id) => {
@@ -81,6 +88,7 @@ export const useSimStore = create<SimStore>((set, get) => ({
       viewDistance: p.viewDistance,
       daysPerSecond: p.daysPerSecond,
       selectedId: null,
+      focusId: null,
       running: true,
       epoch: s.epoch + 1,
     }));
@@ -146,6 +154,7 @@ export const useSimStore = create<SimStore>((set, get) => ({
   },
 
   select: (selectedId) => set({ selectedId }),
+  setFocus: (focusId) => set((s) => ({ focusId, focusNonce: s.focusNonce + 1 })),
   setQuality: (quality) => set({ quality }),
   setExaggeration: (exaggeration) => set({ exaggeration }),
   toggleTrails: () => set((s) => ({ showTrails: !s.showTrails })),
