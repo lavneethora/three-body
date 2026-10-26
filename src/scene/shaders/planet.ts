@@ -51,6 +51,7 @@ export const planetFragmentShader = /* glsl */ `
   uniform int uOctaves;
   uniform float uNightLights;
   uniform float uAmbient;
+  uniform float uDetail;
 
   uniform int uLightCount;
   uniform vec3 uLightPos[MAX_LIGHTS];
@@ -157,8 +158,15 @@ export const planetFragmentShader = /* glsl */ `
       return;
     }
 
+    /*
+     * As with the stars, surface detail is faded out once the planet is only
+     * a few pixels across. At that size the whole disc samples the terrain
+     * noise at one point, so the body's colour becomes a single random draw
+     * that changes as it moves, and the planet visibly flickers. Far away it
+     * should just read as its own colour.
+     */
     float h = surfaceHeight(vObjectPos);
-    vec3 albedo = surfaceColor(h);
+    vec3 albedo = mix(uColor, surfaceColor(h), uDetail);
 
     // Relief from the height gradient, sampled along a tangent basis.
     vec3 n = normalize(vWorldNormal);
@@ -167,7 +175,7 @@ export const planetFragmentShader = /* glsl */ `
     float e = 0.012;
     float hx = surfaceHeight(normalize(vObjectPos + tangent * e));
     float hy = surfaceHeight(normalize(vObjectPos + bitangent * e));
-    float relief = uClass == 5 ? 0.25 : 0.9;
+    float relief = (uClass == 5 ? 0.25 : 0.9) * uDetail;
     vec3 bump = normalize(n - (tangent * (hx - h) + bitangent * (hy - h)) * relief * 6.0);
 
     // Oceans are smooth and shiny; land is rough.
