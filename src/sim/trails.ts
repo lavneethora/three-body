@@ -24,6 +24,8 @@ export class TrailBuffers {
 
   private head: number[];
   private count: number[];
+  /** Total points written, so callers can tell whether a push happened. */
+  totalPushes = 0;
 
   constructor(bodyCount: number, capacity: number) {
     this.bodyCount = bodyCount;
@@ -53,6 +55,7 @@ export class TrailBuffers {
 
     this.head[body] = (h + 1) % this.capacity;
     if (this.count[body] < this.capacity) this.count[body]++;
+    this.totalPushes++;
   }
 
   /** Slot index of the newest point, which the fade shader needs. */
@@ -71,6 +74,7 @@ export class TrailBuffers {
   }
 
   clear(): void {
+    this.totalPushes = 0;
     this.head.fill(0);
     this.count.fill(0);
     for (const p of this.positions) p.fill(0);
