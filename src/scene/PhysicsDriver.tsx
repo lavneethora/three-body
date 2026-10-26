@@ -36,24 +36,58 @@ const followDelta = new THREE.Vector3();
  * thousands of steps per second and React is not in that path.
  */
 export function PhysicsDriver() {
-  const last = useRef({ readoutAt: 0, steps: 0, frames: 0, sampleAt: 0 });
+  const last = useRef({ readoutAt: 0, steps: 0, frames: 0 });
   const following = useRef<string | null>(null);
   const frame = useRef({ nonce: -1, desired: 0 });
+  const lastEpoch = useRef(-1);
+
 
   useFrame((three, delta) => {
     const rt = getRuntime();
     if (!rt) return;
 
-    const { running, daysPerSecond, showTrails, quality, focusId, focusNonce, bodies } =
-      useSimStore.getState();
+    const {
+      running,
+      daysPerSecond,
+      showTrails,
+      quality,
+      focusId,
+      focusNonce,
+      bodies,
+      epoch,
+      viewDistance,
+    } = useSimStore.getState();
     const s = rt.engine.state;
     const now = performance.now();
+
+
+    // Reframe when a different system is loaded. The canvas camera prop only
+    // applies on mount, so without this, switching from a 70 AU system to a
+    // 4 AU one leaves the camera parked where it was and the new system is a
+    // cluster of dots in the middle of the screen.
+    if (epoch !== lastEpoch.current) {
+      lastEpoch.current = epoch;
+      frame.current.desired = 0;
+      following.current = null;
+      offset.copy(three.camera.position);
+      if (offset.lengthSq() === 0) offset.set(0.9, 0.55, 0.9);
+      offset.setLength(viewDistance * 1.38);
+      three.camera.position.copy(offset);
+      three.camera.near = viewDistance / 400;
+      three.camera.far = viewDistance * 2000;
+      (three.camera as THREE.PerspectiveCamera).updateProjectionMatrix();
+      if (sceneRefs.controls) {
+        sceneRefs.controls.target.set(0, 0, 0);
+        sceneRefs.controls.update();
+      }
+    }
 
     if (running) {
       // delta is clamped because a backgrounded tab reports one enormous
       // frame on return, which would otherwise dump a month of simulated
       // time into a single budget.
       const dt = Math.min(delta, 1 / 20);
+      const pushesBefore = rt.trails.totalPushes;
       const result = rt.engine.advance({
         simDays: daysPerSecond * dt,
         maxSteps: MAX_STEPS_PER_FRAME,
@@ -62,7 +96,10 @@ export function PhysicsDriver() {
       rt.throttled = result.cappedBy !== null;
       last.current.steps += result.stepsTaken;
 
-      if (showTrails) {
+      // The engine writes trail points on its own schedule. At low playback
+      // speeds a frame can advance less than one interval, so top up here to
+      // keep the trail following the body rather than lagging behind it.
+      if (showTrails && rt.trails.totalPushes === pushesBefore) {
         for (let i = 0; i < s.n; i++) {
           if (!s.alive[i]) continue;
           rt.trails.push(i, s.pos[i * 3], s.pos[i * 3 + 1], s.pos[i * 3 + 2]);
@@ -80,6 +117,33 @@ export function PhysicsDriver() {
       }
       obj.visible = true;
       obj.position.set(s.pos[i * 3], s.pos[i * 3 + 1], s.pos[i * 3 + 2]);
+    }
+
+    // --- point trail geometry at the live span of its ring buffer --------
+    for (let i = 0; i < s.n; i++) {
+      const geo = sceneRefs.trailGeometries[i];
+      const mat = sceneRefs.trailMaterials[i];
+      if (!geo) continue;
+
+      const count = rt.trails.drawCount(i);
+      if (count < 2) {
+        geo.setDrawRange(0, 0);
+        continue;
+      }
+
+      // The attribute is attached by react-three-fiber a tick after the
+      // geometry exists, so this is undefined on the first frames. Reading
+      // through it unguarded throws, and an exception here aborts the rest
+      // of the frame loop: lights, star surfaces and coronae all stop being
+      // updated, which looks like a shader bug rather than a missing guard.
+      const posAttr = geo.getAttribute("position");
+      if (!posAttr) continue;
+      posAttr.needsUpdate = true;
+      geo.setDrawRange(rt.trails.drawStart(i), count);
+      if (mat) {
+        mat.uniforms.uNewest.value = rt.trails.newestSlot(i);
+        mat.uniforms.uCount.value = count;
+      }
     }
 
     // --- gather lights and occluders for the body shaders ----------------
@@ -246,10 +310,6 @@ export function PhysicsDriver() {
 
     // --- telemetry, throttled --------------------------------------------
     last.current.frames++;
-    if (now - last.current.sampleAt > 200) {
-      rt.tracker.sample(s);
-      last.current.sampleAt = now;
-    }
     if (now - last.current.readoutAt > READOUT_INTERVAL_MS) {
       const elapsed = (now - last.current.readoutAt) / 1000;
       useReadoutStore.getState().update({
