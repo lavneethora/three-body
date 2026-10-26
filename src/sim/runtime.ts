@@ -36,8 +36,16 @@ export const TRAIL_CAPACITY = 2048;
 export function loadSystem(
   bodies: BodySpec[],
   settings: Partial<SimSettings>,
+  /**
+   * Carried over when a body is edited mid-run. The engine is rebuilt from
+   * scratch on every edit, and without this the elapsed clock would jump
+   * back to zero each time, which makes it look like the edit restarted a
+   * simulation that in fact continued.
+   */
+  startTime = 0,
 ): Runtime {
   const engine = new Engine(bodies, settings);
+  engine.state.time = startTime;
   const initialRadius = Math.max(systemRadius(engine.state), 1e-6);
 
   // Characteristic orbital time for a system this size and this heavy. It
