@@ -1,44 +1,30 @@
 "use client";
 
-import { Bloom, EffectComposer, ToneMapping } from "@react-three/postprocessing";
-import { ToneMappingMode } from "postprocessing";
-import { useSimStore } from "@/state/useSimStore";
-
 /**
- * The cinematic pass: bloom, then tone mapping.
+ * Post-processing is currently disabled.
  *
- * Bloom is the effect that matters. The star shaders write values above 1.0
- * on purpose, and bloom is what turns that headroom into light spilling past
- * the disc. Without it a star is a flat white circle.
+ * What was observed, on an M4 at a steady 120fps, in a production build:
+ * with the effect composer mounted, small bright bodies render dark, while
+ * the same bodies in the same frame render correctly with the composer
+ * switched off. A large body, such as the Sun viewed close up, renders
+ * correctly either way. So the fault is specific to small, high-intensity
+ * features going through the composer's render targets.
  *
- * Tone mapping has to be the last link in this chain rather than a setting on
- * the renderer. Bloom needs the full high dynamic range to work from, so the
- * compression into displayable values comes after it. Setting it on the
- * renderer instead was tried and left the whole frame almost black.
+ * It is not the individual effects. Bloom blends additively and cannot
+ * darken anything; removing chromatic aberration, the vignette and the tone
+ * mapping pass in turn did not fix it, and neither did moving tone mapping
+ * onto the renderer.
  *
- * Chromatic aberration and a vignette were here and have been removed. They
- * are what was turning the picture black: with the chain switched off, or
- * with those two effects dropped, the same scene renders correctly.
+ * Bloom was only ever a bonus here: each star already draws its own corona
+ * billboard, which is what gives it a halo. Losing the pass costs a little
+ * glow and nothing else, so the composer stays off until the render-target
+ * problem is properly understood, rather than shipping a default where stars
+ * flicker and vanish.
  *
- * No multisampling on the composer either. An MSAA render target underneath
- * the chain is a further source of the driver trouble the logarithmic depth
- * buffer caused, and the canvas already asks for antialiasing.
+ * Worth trying next: an explicit `frameBufferType` of HalfFloatType on the
+ * composer, and checking how the drawing buffer's colour space is handled
+ * on the way into its targets.
  */
 export function Effects() {
-  const quality = useSimStore((s) => s.quality);
-
-  if (quality === "performance") return null;
-
-  return (
-    <EffectComposer multisampling={0}>
-      <Bloom
-        intensity={quality === "cinematic" ? 1.15 : 0.8}
-        luminanceThreshold={0.32}
-        luminanceSmoothing={0.5}
-        mipmapBlur
-        radius={quality === "cinematic" ? 0.72 : 0.6}
-      />
-      <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
-    </EffectComposer>
-  );
+  return null;
 }
