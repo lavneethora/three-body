@@ -23,7 +23,7 @@ export function TimeControls() {
   const setQuality = useSimStore((s) => s.setQuality);
 
   return (
-    <div className="panel-dark flex flex-wrap items-center justify-end gap-2 px-3 py-2">
+    <div className="panel-dark ml-auto flex max-w-full flex-wrap items-center justify-end gap-2 px-3 py-2">
       <button className="btn btn-ghost" onClick={toggleRunning}>
         {running ? "Pause" : "Play"}
       </button>
