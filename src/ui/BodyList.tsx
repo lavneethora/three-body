@@ -11,7 +11,7 @@ export function BodyList({ onAdd }: { onAdd: () => void }) {
   const setFocus = useSimStore((s) => s.setFocus);
 
   return (
-    <div className="panel-dark w-[240px] overflow-hidden">
+    <div className="panel-dark w-full overflow-hidden">
       <div className="flex items-center justify-between px-4 pt-3 pb-2">
         <span className="readout-label">Bodies</span>
         {focusId && (
