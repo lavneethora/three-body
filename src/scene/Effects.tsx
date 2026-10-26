@@ -30,8 +30,12 @@ export function Effects() {
 
   if (quality === "performance") return null;
 
+  // No multisampling on the composer: an MSAA render target under the effect
+  // chain is a second source of the same driver trouble that the logarithmic
+  // depth buffer caused, and the canvas already requests antialiasing.
+
   return (
-    <EffectComposer multisampling={quality === "cinematic" ? 4 : 0}>
+    <EffectComposer multisampling={0}>
       <Bloom
         intensity={quality === "cinematic" ? 1.15 : 0.8}
         luminanceThreshold={0.32}
