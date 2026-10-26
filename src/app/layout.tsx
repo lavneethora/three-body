@@ -44,6 +44,9 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
+  // Let the canvas run under the notch and home indicator; the overlays
+  // keep clear of them with safe-area padding.
+  viewportFit: "cover",
   themeColor: "#05060a",
 };
 
