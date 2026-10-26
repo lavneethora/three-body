@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
+import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
+import { sceneRefs } from "@/sim/sceneRefs";
 
 /**
  * Background stars.
@@ -12,6 +13,15 @@ import * as THREE from "three";
  * modelled loosely on the distribution of stellar temperatures.
  */
 export function Starfield({ count = 3500, radius = 4000 }: { count?: number; radius?: number }) {
+  const ref = useRef<THREE.Points>(null);
+
+  useLayoutEffect(() => {
+    sceneRefs.starfield = ref.current;
+    return () => {
+      sceneRefs.starfield = null;
+    };
+  }, []);
+
   const { positions, colors, sizes } = useMemo(() => {
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);
@@ -47,7 +57,7 @@ export function Starfield({ count = 3500, radius = 4000 }: { count?: number; rad
   }, [count, radius]);
 
   return (
-    <points>
+    <points ref={ref} frustumCulled={false}>
       <bufferGeometry>
         <bufferAttribute attach="attributes-position" args={[positions, 3]} />
         <bufferAttribute attach="attributes-color" args={[colors, 3]} />
