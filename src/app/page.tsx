@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { SimCanvas } from "@/scene/SimCanvas";
+import { BodyList } from "@/ui/BodyList";
 import { PresetBar } from "@/ui/PresetBar";
 import { Readouts } from "@/ui/Readouts";
 import { TimeControls } from "@/ui/TimeControls";
@@ -23,6 +24,12 @@ export default function Page() {
         <div className="flex justify-center">
           <div className="panel-dark px-3 py-2">
             <PresetBar />
+          </div>
+        </div>
+
+        <div className="pointer-events-none absolute right-4 top-20">
+          <div className="pointer-events-auto">
+            <BodyList />
           </div>
         </div>
 
