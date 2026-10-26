@@ -17,6 +17,14 @@ const READOUT_INTERVAL_MS = 100;
 const MIN_GLOW_PIXELS = 11;
 const MIN_STAR_PIXELS = 4.5;
 const MIN_PLANET_PIXELS = 3.2;
+/**
+ * Apparent radius, in pixels, over which a body shows its full surface
+ * detail. Below the lower bound it is drawn as an even disc, because at that
+ * size the surface shaders sample their noise at effectively a single point
+ * and the body flickers as that sample changes.
+ */
+const DETAIL_MIN_PIXELS = 6;
+const DETAIL_FULL_PIXELS = 26;
 
 const lightPos: THREE.Vector3[] = [];
 const lightColor: THREE.Vector3[] = [];
@@ -233,6 +241,22 @@ export function PhysicsDriver() {
         scale = Math.max(1, (worldPerPixel * minPixels) / v.displayRadius);
         scaler.scale.setScalar(scale);
       }
+
+      // How big the body actually is on screen, which decides how much
+      // surface detail its shader should show.
+      const apparentPixels = (v.displayRadius * scale) / worldPerPixel;
+      const detail = Math.min(
+        1,
+        Math.max(
+          0,
+          (apparentPixels - DETAIL_MIN_PIXELS) /
+            (DETAIL_FULL_PIXELS - DETAIL_MIN_PIXELS),
+        ),
+      );
+      const starMaterial = sceneRefs.starMaterials[i];
+      if (starMaterial) starMaterial.uniforms.uDetail.value = detail;
+      const planetMaterial = sceneRefs.planetMaterials[i];
+      if (planetMaterial) planetMaterial.uniforms.uDetail.value = detail;
 
       const marker = sceneRefs.markers[i];
       if (marker && marker.visible) {
