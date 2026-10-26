@@ -95,6 +95,13 @@ function figureEight(): Preset {
       body("Star B", 1, r, [-x, -y, 0], [-v3x / 2, -v3y / 2, 0], "star", "#a0c8ff", 7200),
       body("Star C", 1, r, [0, 0, 0], [v3x, v3y, 0], "star", "#ffa0a0", 4800),
     ],
+    settings: {
+      // No close encounters here, so a fixed step keeps the integrator
+      // strictly symplectic and this delicate periodic solution holds its
+      // shape indefinitely. Adaptive stepping would slowly smear it out.
+      fixedDt: FIGURE_EIGHT_PERIOD_DAYS / 4000,
+      softening: 0,
+    },
     viewDistance: 4,
     daysPerSecond: 40,
   };
@@ -161,6 +168,7 @@ function sunEarthMars(): Preset {
     blurb:
       "The real thing, and the control case. Two planets this light barely feel each other at all.",
     expected: "Stable indefinitely. Orbits stay put.",
+    settings: { fixedDt: 365.25 / 2000, softening: 0 },
     bodies: [
       body("Sun", 1, solarRadiiToAu(1), [0, 0, 0], [0, 0, 0], "star", "#fff3d4", 5772),
       body(
@@ -329,6 +337,7 @@ function trojan(): Preset {
     blurb:
       "An asteroid sitting at Jupiter's L4 point, sixty degrees ahead of the planet. Thousands of real rocks live here.",
     expected: "The asteroid holds its lead on Jupiter indefinitely.",
+    settings: { fixedDt: 1.0, softening: 0 },
     bodies: [
       body("Sun", mS, solarRadiiToAu(1), [xS, 0, 0], [0, omega * xS, 0], "star", "#fff3d4", 5772),
       body("Jupiter", mJ, kmToAu(69911), [xJ, 0, 0], [0, omega * xJ, 0], "gas-giant", "#c89b6e"),
