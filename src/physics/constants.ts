@@ -46,8 +46,46 @@ export const M_EARTH = 1 / MASS_RATIO_SUN_OVER.earth;
 /** Jupiter mass in solar masses. */
 export const M_JUPITER = 1 / MASS_RATIO_SUN_OVER.jupiter;
 
+/** Solar mass in kilograms, for density. */
+export const M_SUN_KG = 1.98847e30;
+
+/** Astronomical unit in metres, for density. */
+export const AU_M = 1.495978707e11;
+
 /** Days in a Julian year, for readouts. */
 export const DAYS_PER_YEAR = 365.25;
+
+/**
+ * Mean density in g/cm3, the unit people actually have intuition for.
+ *
+ * Water is 1, rock is around 3 to 5, Saturn is 0.69 and would float.
+ * Mass, radius and density are not independent: fixing any two fixes the
+ * third, which is what lets the body editor solve for whichever field the
+ * user did not touch last.
+ */
+export function densityGramsPerCc(massMsun: number, radiusAu: number): number {
+  if (radiusAu <= 0) return 0;
+  const kg = massMsun * M_SUN_KG;
+  const m = radiusAu * AU_M;
+  const volume = (4 / 3) * Math.PI * m * m * m;
+  return kg / volume / 1000;
+}
+
+/** Radius in AU that gives this mass the requested density. */
+export function radiusForDensity(massMsun: number, densityGcc: number): number {
+  if (densityGcc <= 0) return 0;
+  const kg = massMsun * M_SUN_KG;
+  const volume = kg / (densityGcc * 1000);
+  const m = Math.cbrt((volume * 3) / (4 * Math.PI));
+  return m / AU_M;
+}
+
+/** Mass in solar masses that gives this radius the requested density. */
+export function massForDensity(radiusAu: number, densityGcc: number): number {
+  const m = radiusAu * AU_M;
+  const volume = (4 / 3) * Math.PI * m * m * m;
+  return (volume * densityGcc * 1000) / M_SUN_KG;
+}
 
 /** Convert a radius in kilometres to AU. */
 export function kmToAu(km: number): number {
