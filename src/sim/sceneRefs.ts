@@ -40,6 +40,7 @@ export const sceneRefs = {
   glowMaterials: [] as (ShaderMaterial | null)[],
   visuals: [] as (BodyVisual | null)[],
   controls: null as ControlsHandle | null,
+  starfield: null as Object3D | null,
 };
 
 export function resetSceneRefs(count: number): void {
