@@ -101,7 +101,7 @@ export function BodyEditor() {
   };
 
   return (
-    <div className="panel-dark w-[260px] overflow-hidden">
+    <div className="panel-dark w-full overflow-hidden">
       <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
         <span className="readout-label">Edit</span>
         <button
