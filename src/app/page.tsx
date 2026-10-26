@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { PRESETS_BY_ID } from "@/catalog/presets";
 import { SimCanvas } from "@/scene/SimCanvas";
+import { decodeSystem } from "@/share/url";
 import { BodyEditor } from "@/ui/BodyEditor";
 import { BodyList } from "@/ui/BodyList";
 import { CatalogPicker } from "@/ui/CatalogPicker";
@@ -13,11 +15,35 @@ import { useSimStore } from "@/state/useSimStore";
 export default function Page() {
   const epoch = useSimStore((s) => s.epoch);
   const loadPreset = useSimStore((s) => s.loadPreset);
+  const loadShared = useSimStore((s) => s.loadShared);
   const [picking, setPicking] = useState(false);
+  const [badLink, setBadLink] = useState(false);
 
   useEffect(() => {
-    if (epoch === 0) loadPreset("trisolaris");
-  }, [epoch, loadPreset]);
+    if (epoch !== 0) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const shared = params.get("s");
+    const presetId = params.get("p");
+
+    if (shared) {
+      const decoded = decodeSystem(shared);
+      if (decoded) {
+        loadShared(decoded);
+        return;
+      }
+      // A truncated or mangled link should still land somewhere useful
+      // rather than on an empty page.
+      setBadLink(true);
+    }
+
+    if (presetId && PRESETS_BY_ID.has(presetId)) {
+      loadPreset(presetId);
+      return;
+    }
+
+    loadPreset("trisolaris");
+  }, [epoch, loadPreset, loadShared]);
 
   return (
     <main className="fixed inset-0 overflow-hidden bg-[var(--void)]">
@@ -44,6 +70,20 @@ export default function Page() {
           <TimeControls />
         </div>
       </div>
+
+      {badLink && (
+        <div className="panel-dark absolute left-1/2 top-20 -translate-x-1/2 px-4 py-3">
+          <p className="text-[13px] text-white/80">
+            That link could not be read, so here is Trisolaris instead.
+          </p>
+          <button
+            className="mt-1 text-[12px] text-white/50 hover:text-white"
+            onClick={() => setBadLink(false)}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {picking && <CatalogPicker onClose={() => setPicking(false)} />}
     </main>
