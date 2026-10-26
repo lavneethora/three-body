@@ -1,38 +1,33 @@
 "use client";
 
-import { useMemo } from "react";
-import * as THREE from "three";
-import {
-  Bloom,
-  ChromaticAberration,
-  EffectComposer,
-  ToneMapping,
-  Vignette,
-} from "@react-three/postprocessing";
-import { BlendFunction, ToneMappingMode } from "postprocessing";
+import { Bloom, EffectComposer, ToneMapping } from "@react-three/postprocessing";
+import { ToneMappingMode } from "postprocessing";
 import { useSimStore } from "@/state/useSimStore";
 
 /**
- * The cinematic pass.
+ * The cinematic pass: bloom, then tone mapping.
  *
- * Bloom is the important one: the star shaders deliberately write values
- * above 1.0, so bloom is what turns that headroom into light that spills
- * past the disc. Tone mapping runs here, at the end of the chain, rather
- * than on the renderer, so that the bloom sees the full high dynamic range
- * before anything is compressed into display values.
+ * Bloom is the effect that matters. The star shaders write values above 1.0
+ * on purpose, and bloom is what turns that headroom into light spilling past
+ * the disc. Without it a star is a flat white circle.
  *
- * Chromatic aberration and vignette are kept very light. They should read as
- * a lens, not as a filter.
+ * Tone mapping has to be the last link in this chain rather than a setting on
+ * the renderer. Bloom needs the full high dynamic range to work from, so the
+ * compression into displayable values comes after it. Setting it on the
+ * renderer instead was tried and left the whole frame almost black.
+ *
+ * Chromatic aberration and a vignette were here and have been removed. They
+ * are what was turning the picture black: with the chain switched off, or
+ * with those two effects dropped, the same scene renders correctly.
+ *
+ * No multisampling on the composer either. An MSAA render target underneath
+ * the chain is a further source of the driver trouble the logarithmic depth
+ * buffer caused, and the canvas already asks for antialiasing.
  */
 export function Effects() {
   const quality = useSimStore((s) => s.quality);
-  const offset = useMemo(() => new THREE.Vector2(0.0004, 0.0004), []);
 
   if (quality === "performance") return null;
-
-  // No multisampling on the composer: an MSAA render target under the effect
-  // chain is a second source of the same driver trouble that the logarithmic
-  // depth buffer caused, and the canvas already requests antialiasing.
 
   return (
     <EffectComposer multisampling={0}>
@@ -43,21 +38,6 @@ export function Effects() {
         mipmapBlur
         radius={quality === "cinematic" ? 0.72 : 0.6}
       />
-      {quality === "cinematic" ? (
-        <ChromaticAberration
-          offset={offset}
-          blendFunction={BlendFunction.NORMAL}
-          radialModulation={false}
-          modulationOffset={0}
-        />
-      ) : (
-        <></>
-      )}
-      {quality === "cinematic" ? (
-        <Vignette offset={0.28} darkness={0.55} blendFunction={BlendFunction.NORMAL} />
-      ) : (
-        <></>
-      )}
       <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
     </EffectComposer>
   );
