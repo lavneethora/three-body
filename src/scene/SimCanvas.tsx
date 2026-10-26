@@ -21,12 +21,22 @@ export function SimCanvas() {
 
   return (
     <Canvas
-      // A logarithmic depth buffer, plus a near plane derived from the
-      // framing distance rather than a fixed small number, is what keeps
-      // z-fighting away across the enormous range of scales here.
+      /*
+       * No logarithmic depth buffer, deliberately.
+       *
+       * It is the usual answer to a scene spanning this range of scales, but
+       * the postprocessing library does not handle it reliably: the composer
+       * allocates its own depth texture, and with logarithmic depth some
+       * drivers hand back garbage, which showed up here as the scene
+       * flickering between the real frame and an empty one.
+       *
+       * The clip planes are derived from the framing distance instead, which
+       * keeps the near/far ratio inside what a 24-bit depth buffer handles
+       * comfortably. Bodies in this scene are small and far apart, so there
+       * is little coplanar geometry to z-fight in the first place.
+       */
       gl={{
         antialias: quality !== "performance",
-        logarithmicDepthBuffer: true,
         // Tone mapping happens at the end of the effect chain instead, so
         // bloom gets the full dynamic range the star shaders write.
         toneMapping: THREE.NoToneMapping,
@@ -35,8 +45,8 @@ export function SimCanvas() {
       camera={{
         position: [viewDistance * 0.9, viewDistance * 0.55, viewDistance * 0.9],
         fov: 45,
-        near: viewDistance / 2000,
-        far: viewDistance * 4000,
+        near: viewDistance / 400,
+        far: viewDistance * 2000,
       }}
       onPointerMissed={() => select(null)}
     >
