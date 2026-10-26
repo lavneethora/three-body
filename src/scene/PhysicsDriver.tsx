@@ -8,6 +8,7 @@ import { sceneRefs } from "@/sim/sceneRefs";
 import { useSimStore } from "@/state/useSimStore";
 import { useReadoutStore } from "@/state/useReadoutStore";
 import { MAX_LIGHTS, MAX_OCCLUDERS } from "./shaders/planet";
+import { computeClipPlanes } from "./clipPlanes";
 
 const MAX_STEPS_PER_FRAME = 20_000;
 const MS_BUDGET = 6;
@@ -73,9 +74,6 @@ export function PhysicsDriver() {
       if (offset.lengthSq() === 0) offset.set(0.9, 0.55, 0.9);
       offset.setLength(viewDistance * 1.38);
       three.camera.position.copy(offset);
-      three.camera.near = viewDistance / 400;
-      three.camera.far = viewDistance * 2000;
-      (three.camera as THREE.PerspectiveCamera).updateProjectionMatrix();
       if (sceneRefs.controls) {
         sceneRefs.controls.target.set(0, 0, 0);
         sceneRefs.controls.update();
@@ -254,6 +252,55 @@ export function PhysicsDriver() {
       // The corona sits inside the scaled group, so undo that scale to keep
       // its screen size independent of the body's.
       glow.scale.setScalar((size * 2) / scale);
+    }
+
+    // --- clip planes, recomputed every frame -----------------------------
+    /*
+     * Fixed near and far planes cannot work here. The camera travels from
+     * hundreds of AU out to a few thousandths of an AU from a planet's
+     * surface, and a near plane that suits one end of that range clips the
+     * other: too far out and close bodies are sliced away, too close and
+     * depth precision collapses. A body sitting near the boundary pops in
+     * and out as it orbits, which reads as flickering.
+     *
+     * So the planes are derived from what is actually on screen: the near
+     * plane from the closest thing being drawn, the far plane from the whole
+     * system plus however far the camera has backed off.
+     */
+    let nearest = Infinity;
+    let systemExtent = 0;
+
+    for (let i = 0; i < s.n; i++) {
+      if (!s.alive[i]) continue;
+      const v = sceneRefs.visuals[i];
+      if (!v) continue;
+
+      tmp.set(s.pos[i * 3], s.pos[i * 3 + 1], s.pos[i * 3 + 2]);
+      systemExtent = Math.max(systemExtent, tmp.length());
+
+      // How far the drawn body reaches, including its corona billboard,
+      // which extends well past the sphere itself.
+      const drawn = sceneRefs.scalers[i]?.scale.x ?? 1;
+      const extent = v.displayRadius * drawn * (v.luminous ? 6 : 1.4);
+      nearest = Math.min(nearest, three.camera.position.distanceTo(tmp) - extent);
+    }
+
+    const camDist = three.camera.position.length();
+    const { near, far } = computeClipPlanes(nearest, camDist + systemExtent);
+
+    const cam = three.camera as THREE.PerspectiveCamera;
+    if (cam.near !== near || cam.far !== far) {
+      cam.near = near;
+      cam.far = far;
+      cam.updateProjectionMatrix();
+    }
+
+    // Keep the backdrop centred on the viewer and sized to the far plane, so
+    // it reads as sky at every zoom level instead of being clipped away or
+    // swallowing the system.
+    if (sceneRefs.starfield) {
+      sceneRefs.starfield.position.copy(three.camera.position);
+      sceneRefs.starfield.scale.setScalar((far * 0.35) / 4000);
     }
 
     // --- camera follow ---------------------------------------------------
