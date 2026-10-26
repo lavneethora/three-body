@@ -48,6 +48,20 @@ export class Engine {
   /** Simulation time requested but not yet consumed by a whole step. */
   private pending = 0;
 
+  /**
+   * Periodic observer, called on a schedule in SIMULATED time.
+   *
+   * This has to live in the stepping loop rather than in the render loop.
+   * Anything sampled once per frame is sampled on wall-clock time, so at
+   * high playback speeds an orbit can pass between two samples and the
+   * history is aliased beyond use. Driving it from simulated time means the
+   * sampling rate holds no matter the speed or the framerate.
+   */
+  onSample: ((state: SimState) => void) | null = null;
+  /** Days between samples. Zero disables sampling. */
+  sampleInterval = 0;
+  private nextSampleAt = 0;
+
   constructor(
     specs: BodySpec[] | SimState,
     settings: Partial<SimSettings> = {},
@@ -75,6 +89,10 @@ export class Engine {
     integrate(this.state, dt, this.settings.softening, this.accel, this.settings.integrator);
     if (this.settings.collisions) {
       resolveCollisions(this.state, this.settings.collisionScale, this.mergeEvents);
+    }
+    if (this.onSample && this.sampleInterval > 0 && this.state.time >= this.nextSampleAt) {
+      this.onSample(this.state);
+      this.nextSampleAt = this.state.time + this.sampleInterval;
     }
     return dt;
   }
