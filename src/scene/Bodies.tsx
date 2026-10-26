@@ -79,6 +79,7 @@ function StarBody({ spec, index, radius, quality }: {
       uTime: { value: 0 },
       uIntensity: { value: 2.4 },
       uOctaves: { value: OCTAVES[quality] },
+      uDetail: { value: 1 },
     }),
     [color, quality],
   );
@@ -162,6 +163,7 @@ function PlanetBody({ spec, index, radius, quality }: {
       uOctaves: { value: OCTAVES[quality] },
       uNightLights: { value: spec.bodyClass === "ocean" ? 1 : 0 },
       uAmbient: { value: 0.035 },
+      uDetail: { value: 1 },
       uLightCount: { value: 0 },
       uLightPos: { value: emptyVec3Array(MAX_LIGHTS) },
       uLightColor: { value: emptyVec3Array(MAX_LIGHTS) },
