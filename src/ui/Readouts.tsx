@@ -30,7 +30,7 @@ export function Readouts() {
   const quality = driftQuality(energyDrift);
 
   return (
-    <div className="panel-dark w-[270px] p-4">
+    <div className="panel-dark w-full p-4">
       <div className="flex flex-col gap-2">
         <Row label="Elapsed" value={formatTime(time)} />
         <Row
