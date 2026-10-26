@@ -32,6 +32,7 @@ export const starFragmentShader = /* glsl */ `
   uniform float uTime;
   uniform float uIntensity;
   uniform int uOctaves;
+  uniform float uDetail;
 
   varying vec3 vNormal;
   varying vec3 vObjectPos;
@@ -40,6 +41,20 @@ export const starFragmentShader = /* glsl */ `
   ${NOISE_CHUNK}
 
   void main() {
+    /*
+     * Detail fades out as the star gets small on screen, and this is not
+     * just an optimisation.
+     *
+     * A few pixels across, the whole disc samples the granulation noise at
+     * essentially a single point, so its brightness becomes one random draw
+     * from that field, anywhere between 0.16 and 1.24. The noise scrolls and
+     * the camera moves, so that draw keeps changing and the star flickers
+     * between bright and dark. Limb darkening compounds it: at this size
+     * almost every pixel counts as "edge" and is dimmed to a third.
+     *
+     * So below a certain apparent size the star becomes what it should look
+     * like from far away: an even, bright disc.
+     */
     vec3 p = vObjectPos * 3.2;
     float t = uTime * 0.06;
 
@@ -52,10 +67,13 @@ export const starFragmentShader = /* glsl */ `
     float lanes = smoothstep(0.42, 0.0, abs(cells));
     granulation *= 1.0 - 0.22 * lanes;
 
+    granulation = mix(1.0, granulation, uDetail);
+
     // Limb darkening: mu is the cosine of the angle to the viewer.
     vec3 viewDir = normalize(cameraPosition - vWorldPos);
     float mu = clamp(dot(normalize(vNormal), viewDir), 0.0, 1.0);
     float limb = 1.0 - 0.62 * (1.0 - mu) - 0.10 * (1.0 - mu) * (1.0 - mu);
+    limb = mix(1.0, limb, uDetail);
 
     // The very edge runs hotter and whiter.
     float rim = pow(1.0 - mu, 3.0);
