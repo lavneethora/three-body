@@ -251,38 +251,109 @@ export interface SystemAnalysis {
  * Watches a run and decides what happened.
  *
  * Needs history, not just the current frame: "stable" is a statement about
- * how little things changed over many orbits, and in a chaotic system the
- * instantaneous configuration looks much like a stable one.
+ * how little things change over many orbits, and at any single instant a
+ * chaotic system looks much like a well behaved one.
+ *
+ * The measure is deliberately NOT how far each body's distance from the
+ * barycentre swings. That number is large for any eccentric orbit, and it
+ * would label the figure-eight solution, which is exactly periodic, as
+ * chaotic. What distinguishes chaos is that successive orbits differ from
+ * one another. So this tracks each body's apoapsis, the local maximum of its
+ * distance from the barycentre, and asks whether one orbit's apoapsis
+ * matches the last one's.
  */
 export class OutcomeTracker {
   private initialRadius: number;
+  private settleDays: number;
+
+  /** Rolling triple of samples per body, for detecting a local maximum. */
+  private prev2: Float64Array;
+  private prev1: Float64Array;
+  /** Running extremes, to recognise a near-circular orbit. */
   private minR: Float64Array;
   private maxR: Float64Array;
+  /** Recent apoapsis distances per body. */
+  private apoapses: number[][];
+
   private samples = 0;
   private firstSampleTime: number;
 
-  constructor(
-    s: SimState,
-    /** How long the system must behave before we are willing to call it stable. */
-    private settleDays: number,
-  ) {
+  constructor(s: SimState, settleDays: number) {
     this.initialRadius = Math.max(systemRadius(s), 1e-9);
+    this.settleDays = settleDays;
+    this.prev2 = new Float64Array(s.n).fill(NaN);
+    this.prev1 = new Float64Array(s.n).fill(NaN);
     this.minR = new Float64Array(s.n).fill(Infinity);
     this.maxR = new Float64Array(s.n).fill(0);
+    this.apoapses = Array.from({ length: s.n }, () => []);
     this.firstSampleTime = s.time;
   }
 
-  /** Call periodically, not every step. Ten times a second is plenty. */
+  /** Call periodically, not every step. A few times a second is plenty. */
   sample(s: SimState): void {
     const c = centerOfMass(s);
+
     for (let i = 0; i < s.n; i++) {
       if (!s.alive[i]) continue;
       const i3 = i * 3;
       const r = Math.hypot(s.pos[i3] - c[0], s.pos[i3 + 1] - c[1], s.pos[i3 + 2] - c[2]);
+
       if (r < this.minR[i]) this.minR[i] = r;
       if (r > this.maxR[i]) this.maxR[i] = r;
+
+      // A local maximum in the middle sample means the body just rounded the
+      // far end of its orbit.
+      const a = this.prev2[i];
+      const b = this.prev1[i];
+      if (!Number.isNaN(a) && !Number.isNaN(b) && b > a && b >= r) {
+        const list = this.apoapses[i];
+        list.push(b);
+        if (list.length > 8) list.shift();
+      }
+
+      this.prev2[i] = b;
+      this.prev1[i] = r;
     }
+
     this.samples++;
+  }
+
+  /** How much one orbit differs from the next, as a fraction. */
+  private orbitVariation(s: SimState): number {
+    let worst = 0;
+
+    for (let i = 0; i < s.n; i++) {
+      if (!s.alive[i] || this.maxR[i] === 0) continue;
+
+      // A near-circular orbit has no meaningful apoapsis to compare, and the
+      // flatness of its radius is already proof enough that it is regular.
+      const mid = (this.maxR[i] + this.minR[i]) / 2;
+      if (mid > 0 && (this.maxR[i] - this.minR[i]) / mid < 0.02) continue;
+
+      const list = this.apoapses[i];
+      if (list.length < 3) continue;
+
+      const lo = Math.min(...list);
+      const hi = Math.max(...list);
+      const mean = list.reduce((x, y) => x + y, 0) / list.length;
+      if (mean <= 0) continue;
+
+      const spread = (hi - lo) / mean;
+      if (spread > worst) worst = spread;
+    }
+
+    return worst;
+  }
+
+  /** True once we have seen enough orbits to say anything at all. */
+  private hasEvidence(s: SimState): boolean {
+    for (let i = 0; i < s.n; i++) {
+      if (!s.alive[i]) continue;
+      const mid = (this.maxR[i] + this.minR[i]) / 2;
+      const circular = mid > 0 && (this.maxR[i] - this.minR[i]) / mid < 0.02;
+      if (!circular && this.apoapses[i].length < 3) return false;
+    }
+    return true;
   }
 
   analyze(s: SimState, mergeCount: number): SystemAnalysis {
@@ -291,15 +362,7 @@ export class OutcomeTracker {
     let live = 0;
     for (let i = 0; i < s.n; i++) if (s.alive[i]) live++;
 
-    let variation = 0;
-    for (let i = 0; i < s.n; i++) {
-      if (!s.alive[i] || this.maxR[i] === 0) continue;
-      const mid = (this.maxR[i] + this.minR[i]) / 2;
-      if (mid <= 0) continue;
-      const v = (this.maxR[i] - this.minR[i]) / mid;
-      if (v > variation) variation = v;
-    }
-
+    const variation = this.orbitVariation(s);
     const elapsed = s.time - this.firstSampleTime;
     const name = (g: Group) => g.members.map((m) => `#${m + 1}`).join("+");
 
@@ -318,15 +381,18 @@ export class OutcomeTracker {
     } else if (mergeCount > 0) {
       outcome = "collision";
       label = `${mergeCount} collision${mergeCount > 1 ? "s" : ""}. Bodies merged, conserving mass and momentum.`;
-    } else if (elapsed < this.settleDays || this.samples < 10) {
+    } else if (elapsed < this.settleDays || this.samples < 12 || !this.hasEvidence(s)) {
       outcome = "settling";
       label = "Still settling. Give it a few more orbits.";
-    } else if (variation > 0.2) {
+    } else if (variation > 0.15) {
       outcome = "chaotic";
-      label = `Chaotic but still bound. Orbital distances are swinging by ${(variation * 100).toFixed(0)}%.`;
+      label = `Chaotic but still bound. Each orbit comes back ${(variation * 100).toFixed(0)}% different from the last.`;
     } else {
       outcome = "stable";
-      label = `Stable so far. Orbits holding to within ${(variation * 100).toFixed(1)}%.`;
+      label =
+        variation < 0.01
+          ? "Stable. Every orbit retraces the one before it."
+          : `Stable. Successive orbits repeat to within ${(variation * 100).toFixed(1)}%.`;
     }
 
     return {
