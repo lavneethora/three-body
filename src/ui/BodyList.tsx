@@ -3,7 +3,7 @@
 import { useSimStore } from "@/state/useSimStore";
 import { formatMass } from "./format";
 
-export function BodyList() {
+export function BodyList({ onAdd }: { onAdd: () => void }) {
   const bodies = useSimStore((s) => s.bodies);
   const selectedId = useSimStore((s) => s.selectedId);
   const focusId = useSimStore((s) => s.focusId);
@@ -60,9 +60,14 @@ export function BodyList() {
         })}
       </div>
 
-      <p className="px-4 pb-3 text-[11px] leading-snug text-white/35">
-        Pick one to follow it, then zoom in.
-      </p>
+      <div className="border-t border-white/10 px-3 py-3">
+        <button className="btn btn-ghost h-9 w-full justify-center text-[13px]" onClick={onAdd}>
+          Add a body
+        </button>
+        <p className="mt-2 px-1 text-[11px] leading-snug text-white/35">
+          Pick one to follow it, then zoom in.
+        </p>
+      </div>
     </div>
   );
 }
