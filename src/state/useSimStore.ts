@@ -4,6 +4,7 @@ import { PRESETS, preset } from "@/catalog/presets";
 import { bodyFromCatalog } from "@/catalog/placement";
 import type { CatalogEntry } from "@/catalog";
 import { getRuntime, loadSystem } from "@/sim/runtime";
+import type { SharedSystem } from "@/share/url";
 
 export type Quality = "cinematic" | "balanced" | "performance";
 
@@ -39,6 +40,7 @@ interface SimStore {
   epoch: number;
 
   loadPreset: (id: string) => void;
+  loadShared: (shared: SharedSystem) => void;
   restart: () => void;
   setRunning: (running: boolean) => void;
   toggleRunning: () => void;
@@ -132,6 +134,21 @@ export const useSimStore = create<SimStore>((set, get) => {
         initialBodies: clone(p.bodies),
         viewDistance: p.viewDistance,
         daysPerSecond: p.daysPerSecond,
+        selectedId: null,
+        focusId: null,
+        running: true,
+      });
+    },
+
+    /** Open a system that arrived in a link. */
+    loadShared: (shared) => {
+      const settings = { ...DEFAULT_SETTINGS, ...shared.settings };
+      const bodies = clone(shared.bodies);
+      rebuild(bodies, settings, {
+        presetId: null,
+        initialBodies: clone(shared.bodies),
+        viewDistance: shared.viewDistance ?? 10,
+        daysPerSecond: shared.daysPerSecond ?? 60,
         selectedId: null,
         focusId: null,
         running: true,
