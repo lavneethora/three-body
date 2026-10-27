@@ -52,6 +52,7 @@ export function PhysicsDriver() {
   const following = useRef<string | null>(null);
   const frame = useRef({ nonce: -1, desired: 0 });
   const lastFraming = useRef(-1);
+  const lastFit = useRef(-1);
 
 
   useFrame((three, delta) => {
@@ -67,6 +68,7 @@ export function PhysicsDriver() {
       focusNonce,
       bodies,
       framingNonce,
+      fitNonce,
       viewDistance,
     } = useSimStore.getState();
     const s = rt.engine.state;
@@ -350,6 +352,49 @@ export function PhysicsDriver() {
     if (sceneRefs.starfield) {
       sceneRefs.starfield.position.copy(three.camera.position);
       sceneRefs.starfield.scale.setScalar((far * 0.35) / 4000);
+    }
+
+    // --- fit everything on screen ----------------------------------------
+    /*
+     * Worked out from what is actually being drawn rather than from a stored
+     * view distance: the bounding sphere of every live body including how
+     * large it is drawn, then the distance at which that sphere fills the
+     * narrower of the two fields of view. A tall narrow window constrains
+     * horizontally, so using the vertical field of view alone would cut the
+     * edges off.
+     */
+    if (fitNonce !== lastFit.current) {
+      lastFit.current = fitNonce;
+
+      let bound = 0;
+      for (let i = 0; i < s.n; i++) {
+        if (!s.alive[i]) continue;
+        const v = sceneRefs.visuals[i];
+        tmp.set(s.pos[i * 3], s.pos[i * 3 + 1], s.pos[i * 3 + 2]);
+        const drawn = v ? v.focusDistance * 0.4 : 0;
+        bound = Math.max(bound, tmp.length() + drawn);
+      }
+
+      if (bound > 0) {
+        const cam = three.camera as THREE.PerspectiveCamera;
+        const halfV = (cam.fov * Math.PI) / 360;
+        const halfH = Math.atan(Math.tan(halfV) * (three.size.width / three.size.height));
+        const limiting = Math.min(halfV, halfH);
+        // A little margin so nothing sits right against the edge.
+        const distance = (bound * 1.15) / Math.sin(limiting);
+
+        offset.copy(three.camera.position);
+        if (offset.lengthSq() === 0) offset.set(0.9, 0.55, 0.9);
+        offset.setLength(distance);
+        three.camera.position.copy(offset);
+
+        frame.current.desired = 0;
+        following.current = null;
+        if (sceneRefs.controls) {
+          sceneRefs.controls.target.set(0, 0, 0);
+          sceneRefs.controls.update();
+        }
+      }
     }
 
     // --- camera follow ---------------------------------------------------
