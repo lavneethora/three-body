@@ -13,6 +13,11 @@ import {
   starVertexShader,
 } from "./shaders/star";
 import {
+  MAX_LENSING_STEPS,
+  blackHoleFragmentShader,
+  blackHoleVertexShader,
+} from "./shaders/blackhole";
+import {
   CLASS_INDEX,
   MAX_LIGHTS,
   MAX_OCCLUDERS,
@@ -22,6 +27,8 @@ import {
   planetVertexShader,
 } from "./shaders/planet";
 import type { BodySpec } from "@/physics/types";
+
+export const BLACK_HOLE_QUAD_RADII = 11;
 
 const SPHERE_SEGMENTS: Record<Quality, [number, number]> = {
   cinematic: [96, 64],
@@ -33,6 +40,20 @@ const OCTAVES: Record<Quality, number> = {
   cinematic: 6,
   balanced: 4,
   performance: 3,
+};
+
+/**
+ * Integration steps per pixel for the lensing.
+ *
+ * This is the one genuinely expensive thing in the scene: every pixel of the
+ * black hole integrates a geodesic. Fewer steps means a ray can slip past
+ * the disk plane between samples, so the disk starts to look dashed rather
+ * than solid, which is what sets the floor here.
+ */
+const LENSING_STEPS: Record<Quality, number> = {
+  cinematic: MAX_LENSING_STEPS,
+  balanced: 110,
+  performance: 70,
 };
 
 /** Classes that get an atmospheric shell, and how thick it reads. */
@@ -142,6 +163,48 @@ function StarBody({ spec, index, radius, quality }: {
         />
       </mesh>
     </>
+  );
+}
+
+function BlackHoleBody({ index, quality }: { index: number; quality: Quality }) {
+  const mesh = useRef<THREE.Mesh>(null);
+  const material = useRef<THREE.ShaderMaterial>(null);
+
+  const uniforms = useMemo(
+    () => ({
+      uCenter: { value: new THREE.Vector3() },
+      uRs: { value: 1 },
+      uTime: { value: 0 },
+      uSteps: { value: LENSING_STEPS[quality] },
+      // The innermost stable circular orbit sits at 3 Schwarzschild radii,
+      // so there is simply no disk inside that.
+      uDiskInner: { value: 3 },
+      uDiskOuter: { value: 13 },
+    }),
+    [quality],
+  );
+
+  useLayoutEffect(() => {
+    sceneRefs.blackHoleMeshes[index] = mesh.current;
+    sceneRefs.blackHoleMaterials[index] = material.current;
+    return () => {
+      sceneRefs.blackHoleMeshes[index] = null;
+      sceneRefs.blackHoleMaterials[index] = null;
+    };
+  }, [index]);
+
+  return (
+    <mesh ref={mesh} frustumCulled={false}>
+      <planeGeometry args={[1, 1]} />
+      <shaderMaterial
+        ref={material}
+        vertexShader={blackHoleVertexShader}
+        fragmentShader={blackHoleFragmentShader}
+        uniforms={uniforms}
+        transparent
+        depthWrite={false}
+      />
+    </mesh>
   );
 }
 
@@ -264,10 +327,17 @@ function Body({ spec, index, radius, quality }: {
       : [1, 1, 1];
     const visual: BodyVisual = {
       displayRadius: radius,
+      focusDistance:
+        spec.bodyClass === "black-hole"
+          ? radius * BLACK_HOLE_QUAD_RADII * 2.4
+          : radius * 9,
       luminous,
-      luminosity: luminous
-        ? relativeLuminosity(spec.radius, spec.temperature ?? 5772)
-        : 0,
+      luminosity:
+        spec.bodyClass === "black-hole"
+          ? 3
+          : luminous
+            ? relativeLuminosity(spec.radius, spec.temperature ?? 5772)
+            : 0,
       color: [r, g, b],
     };
     sceneRefs.visuals[index] = visual;
@@ -298,13 +368,17 @@ function Body({ spec, index, radius, quality }: {
           <sphereGeometry args={[radius * 3.5, 12, 8]} />
         </mesh>
 
-        {luminous ? (
+        {spec.bodyClass === "black-hole" ? null : luminous ? (
           <StarBody spec={spec} index={index} radius={radius} quality={quality} />
         ) : (
           <PlanetBody spec={spec} index={index} radius={radius} quality={quality} />
         )}
 
       </group>
+
+      {spec.bodyClass === "black-hole" && (
+        <BlackHoleBody index={index} quality={quality} />
+      )}
 
       {/* Selection reticle. A wireframe over the sphere would bury the
           surface the moment you got close enough to look at it, so this is a
