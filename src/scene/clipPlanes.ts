@@ -32,19 +32,29 @@ export function computeClipPlanes(
   nearestSurface: number,
   farthestContent: number,
 ): ClipPlanes {
+  const content = Math.max(farthestContent, 1e-9);
+
   // The near plane comes first and is never compromised. Clipping the near
   // plane hides whatever the viewer is looking at, which is the black screen
   // and the blinking. Losing distant context is a much smaller cost, so when
   // the depth budget cannot cover both, the far plane gives way instead.
   let near = nearestSurface * 0.5;
   if (!Number.isFinite(near) || near <= 0) {
-    // Either there is nothing on screen, or the camera is inside the nearest
-    // object, such as a star's corona billboard.
-    near = Math.max(farthestContent, 1e-6) * 1e-6;
+    /*
+     * Nothing on screen, or the camera is inside the nearest object: within
+     * a star's corona, or inside the billboard a black hole is drawn on.
+     *
+     * This fallback has to stay in proportion to the scene. Making it
+     * vanishingly small looks safe and is not: the depth-ratio cap below is
+     * relative to the near plane, so a tiny near plane drags the far plane
+     * in with it and clips away everything that was meant to be visible.
+     */
+    near = content * 1e-4;
   }
   near = Math.max(near, ABSOLUTE_MIN_NEAR);
 
-  const wanted = Math.max(farthestContent, 1e-6) * 2.5 + 10;
+  // Comfortably past the farthest thing that has to stay visible.
+  const wanted = content * 3;
   // Always keep some usable depth range, even when zoomed in very close.
   const far = Math.max(Math.min(wanted, near * MAX_DEPTH_RATIO), near * 1000);
 
