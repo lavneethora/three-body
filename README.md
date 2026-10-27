@@ -22,11 +22,25 @@ So that is what this does. The difference between an orbit that holds for a bill
 - **It tells you what happened.** Stable, chaotic, ejected, collided, with the reasoning behind it.
 - **Share a link.** Every system encodes into its URL, so you can send someone the exact thing you built.
 
+![The Sun with Earth and Mars tracing their orbits](docs/solar-system.jpg)
+
+*Sun, Earth and Mars, the control case. Two planets this light barely feel each other at all.*
+
+## How it runs
+
+![A flowchart of one rendered frame, showing the physics loop repeating inside it](docs/diagram-loop.svg)
+
+The simulation is not stepped once per frame. Each frame asks for a certain amount of simulated time and the engine takes as many steps as that needs, bounded so a hard system can never freeze the tab.
+
+The important detail is where the timestep comes from. It is a function of the system's state and nothing else, never of the wall clock or the framerate. A slow machine takes fewer steps per frame, never differently sized ones, which is what makes a shared link replay the same way on someone else's computer. In a chaotic system that distinction is the difference between reproducible and meaningless.
+
 ## The physics
 
 Lengths in AU, masses in solar masses, time in days, which makes the gravitational constant the square of the Gaussian gravitational constant. A circular orbit at 1 AU around 1 solar mass then has speed exactly `k` and a period of 365.2569 days.
 
 Integration is symplectic: velocity Verlet, or Yoshida's fourth-order method by default. Symplectic matters more than raw per-step accuracy, because a non-symplectic method like RK4 lets energy drift in one direction, so long runs visibly decay or inflate. That failure looks like physics while actually being arithmetic.
+
+![A diagram of Yoshida's triple jump, two forward stages either side of a longer backward one](docs/diagram-integrator.svg)
 
 The engine is isolated from the renderer and tested headless. Some of what the tests pin down:
 
@@ -50,9 +64,13 @@ Stars are shaded rather than drawn as glowing balls: animated convection granula
 
 ![A black hole with its accretion disk lensed over and under the shadow](docs/black-hole.jpg)
 
+![A diagram showing light rays bending around a black hole, one landing on the far side of the disk](docs/diagram-lensing.svg)
+
 Black holes are ray-traced. For each pixel a light ray is integrated backwards through Schwarzschild spacetime using the null geodesic equation `d²u/dφ² + u = 3Mu²`. None of what you see is painted on: the shadow is where rays fall inside the horizon and cannot escape, the disk appears to wrap over the top because rays passing above bend back down and cross it again on the far side, and one side is far brighter because the material there is orbiting at over 40% of light speed and heading towards you.
 
-![Earth rendered with procedural continents, atmosphere and a terminator, with its editor panel open](docs/editing-earth.jpg)
+![Earth seen from its night side, its atmosphere lit along the limb, with the app's panels around it](docs/editing-earth.jpg)
+
+*Following Earth, with the readout reporting that every orbit retraces the one before it.*
 
 ## Running it
 
