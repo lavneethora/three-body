@@ -310,59 +310,12 @@ function alphaCentauri(): Preset {
   };
 }
 
-/**
- * Sun, Jupiter, and an asteroid parked at L4.
- *
- * L4 sits at the apex of an equilateral triangle on the two primaries, and
- * is genuinely stable for this mass ratio, which is why Jupiter really does
- * carry thousands of Trojan asteroids there.
- */
-function trojan(): Preset {
-  const mS = 1;
-  const mJ = 1 / MASS_RATIO_SUN_OVER.jupiter;
-  const M = mS + mJ;
-  const a = 5.2044;
-  const omega = Math.sqrt((G * M) / (a * a * a));
-
-  const xS = -(mJ / M) * a;
-  const xJ = (mS / M) * a;
-
-  // Apex of the equilateral triangle on the two primaries.
-  const xL4 = (xS + xJ) / 2;
-  const yL4 = (Math.sqrt(3) / 2) * a;
-
-  return {
-    id: "trojan",
-    name: "Jupiter Trojan",
-    blurb:
-      "An asteroid sitting at Jupiter's L4 point, sixty degrees ahead of the planet. Thousands of real rocks live here.",
-    expected: "The asteroid holds its lead on Jupiter indefinitely.",
-    settings: { fixedDt: 1.0, softening: 0 },
-    bodies: [
-      body("Sun", mS, solarRadiiToAu(1), [xS, 0, 0], [0, omega * xS, 0], "star", "#fff3d4", 5772),
-      body("Jupiter", mJ, kmToAu(69911), [xJ, 0, 0], [0, omega * xJ, 0], "gas-giant", "#c89b6e"),
-      body(
-        "Trojan",
-        1e-11,
-        kmToAu(120),
-        [xL4, yL4, 0],
-        [-omega * yL4, omega * xL4, 0],
-        "rocky",
-        "#8a8178",
-      ),
-    ],
-    viewDistance: 16,
-    daysPerSecond: 120,
-  };
-}
-
 export const PRESETS: Preset[] = [
   trisolaris(),
   figureEight(),
   burrau(),
   sunEarthMars(),
   alphaCentauri(),
-  trojan(),
 ];
 
 export const PRESETS_BY_ID = new Map(PRESETS.map((p) => [p.id, p]));
