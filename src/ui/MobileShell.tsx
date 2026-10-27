@@ -40,6 +40,7 @@ export function MobileShell({ onAdd }: { onAdd: () => void }) {
   const running = useSimStore((s) => s.running);
   const toggleRunning = useSimStore((s) => s.toggleRunning);
   const restart = useSimStore((s) => s.restart);
+  const fitView = useSimStore((s) => s.fitView);
   const daysPerSecond = useSimStore((s) => s.daysPerSecond);
   const setDaysPerSecond = useSimStore((s) => s.setDaysPerSecond);
   const showTrails = useSimStore((s) => s.showTrails);
@@ -217,6 +218,15 @@ export function MobileShell({ onAdd }: { onAdd: () => void }) {
                         onClick={toggleTrails}
                       >
                         Trails
+                      </button>
+                      <button
+                        className="chip flex-1 justify-center"
+                        onClick={() => {
+                          fitView();
+                          setTab(null);
+                        }}
+                      >
+                        Fit view
                       </button>
                       <ShareButton />
                     </div>
