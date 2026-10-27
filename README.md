@@ -2,7 +2,7 @@
 
 A gravity simulator you can share. Place stars and planets, pick real ones or invent your own, and watch whether the orbits hold.
 
-**[three-body-theta.vercel.app](https://three-body-theta.vercel.app)**
+**[threebody-sim.vercel.app](https://threebody-sim.vercel.app)**
 
 ![Three equal stars tracing a single closed figure-eight path](docs/figure-eight.jpg)
 
