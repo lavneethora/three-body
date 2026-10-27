@@ -194,6 +194,34 @@ body {
   display: none;
 }
 
+/* Sliders for orbital elements. */
+.range {
+  appearance: none;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  outline: none;
+}
+
+.range::-webkit-slider-thumb {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--bg);
+  box-shadow: var(--shadow-1);
+  cursor: pointer;
+}
+
+.range::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 999px;
+  background: var(--bg);
+  cursor: pointer;
+}
+
 /* The canvas owns all pointer input; overlays opt back in individually. */
 .overlay {
   pointer-events: none;
