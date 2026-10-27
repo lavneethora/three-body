@@ -6,7 +6,7 @@ import { SimCanvas } from "@/scene/SimCanvas";
 import { decodeSystem } from "@/share/url";
 import { BodyEditor } from "@/ui/BodyEditor";
 import { BodyList } from "@/ui/BodyList";
-import { CatalogPicker } from "@/ui/CatalogPicker";
+import { SystemBuilder } from "@/ui/SystemBuilder";
 import { PresetBar } from "@/ui/PresetBar";
 import { Readouts } from "@/ui/Readouts";
 import { MobileShell } from "@/ui/MobileShell";
@@ -68,7 +68,7 @@ export default function Page() {
         <div className="overlay absolute inset-0 flex flex-col justify-between p-4">
           <div className="flex justify-center">
             <div className="panel-dark px-3 py-2">
-              <PresetBar />
+              <PresetBar onBuild={() => setPicking(true)} />
             </div>
           </div>
 
@@ -107,7 +107,7 @@ export default function Page() {
         </div>
       )}
 
-      {picking && <CatalogPicker onClose={() => setPicking(false)} />}
+      {picking && <SystemBuilder onClose={() => setPicking(false)} />}
     </main>
   );
 }
