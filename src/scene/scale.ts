@@ -1,9 +1,17 @@
 import type { BodyClass } from "@/physics/types";
 
+/**
+ * Bodies that light the scene.
+ *
+ * A black hole is in here despite emitting nothing itself: what lights a
+ * system containing one is its accretion disk, and without this a planet
+ * orbiting a black hole would be rendered pitch black.
+ */
 export const LUMINOUS: ReadonlySet<BodyClass> = new Set<BodyClass>([
   "star",
   "white-dwarf",
   "neutron-star",
+  "black-hole",
 ]);
 
 export function isLuminous(c: BodyClass): boolean {
