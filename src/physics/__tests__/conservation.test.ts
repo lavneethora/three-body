@@ -240,3 +240,25 @@ describe("merging", () => {
     for (let i = 0; i < 3; i++) expect(p1[i]).toBeCloseTo(p0[i], 12);
   });
 });
+
+describe("energy after a merge", () => {
+  it("re-baselines, so an inelastic merge is not read as integrator error", () => {
+    // Two bodies placed overlapping merge on the first step. That genuinely
+    // changes the system's energy, and the drift readout has to measure
+    // against the new system rather than the old one.
+    const bodies = [
+      spec("A", 1, 0.05, [-0.02, 0, 0], [0, 0.002, 0]),
+      spec("B", 1, 0.05, [0.02, 0, 0], [0, -0.002, 0]),
+    ];
+    const e = new Engine(bodies, { softening: 1e-4, fixedDt: 0.01 });
+
+    e.runSteps(1);
+    expect(e.mergeEvents.length).toBe(1);
+
+    e.runSteps(500);
+    console.log(`  drift after merge: ${e.energyDrift().toExponential(2)}`);
+    // A single body left: nothing to exchange energy with, so this should be
+    // essentially exact rather than the order-one error of the old baseline.
+    expect(e.energyDrift()).toBeLessThan(1e-9);
+  });
+});
