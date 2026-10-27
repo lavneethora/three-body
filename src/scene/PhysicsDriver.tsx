@@ -9,6 +9,7 @@ import { useSimStore } from "@/state/useSimStore";
 import { useReadoutStore } from "@/state/useReadoutStore";
 import { MAX_LIGHTS, MAX_OCCLUDERS } from "./shaders/planet";
 import { computeClipPlanes } from "./clipPlanes";
+import { BLACK_HOLE_QUAD_RADII } from "./Bodies";
 
 const MAX_STEPS_PER_FRAME = 20_000;
 const MS_BUDGET = 6;
@@ -24,6 +25,8 @@ const MIN_PLANET_PIXELS = 3.2;
  * and the body flickers as that sample changes.
  */
 const DETAIL_MIN_PIXELS = 6;
+/** A black hole never gets smaller than this on screen, in Schwarzschild radii. */
+const MIN_BLACK_HOLE_PIXELS = 5;
 const DETAIL_FULL_PIXELS = 26;
 
 const lightPos: THREE.Vector3[] = [];
@@ -258,6 +261,20 @@ export function PhysicsDriver() {
       const planetMaterial = sceneRefs.planetMaterials[i];
       if (planetMaterial) planetMaterial.uniforms.uDetail.value = detail;
 
+      // Black holes are drawn by a ray-traced billboard rather than geometry,
+      // so it sits outside the scaled group and is sized here directly, in
+      // Schwarzschild radii.
+      const hole = sceneRefs.blackHoleMeshes[i];
+      const holeMat = sceneRefs.blackHoleMaterials[i];
+      if (hole && holeMat) {
+        hole.quaternion.copy(three.camera.quaternion);
+        const rs = Math.max(v.displayRadius, worldPerPixel * MIN_BLACK_HOLE_PIXELS);
+        hole.scale.setScalar(rs * 2 * BLACK_HOLE_QUAD_RADII);
+        (holeMat.uniforms.uCenter.value as THREE.Vector3).copy(tmp);
+        holeMat.uniforms.uRs.value = rs;
+        holeMat.uniforms.uTime.value = seconds;
+      }
+
       const marker = sceneRefs.markers[i];
       if (marker && marker.visible) {
         marker.quaternion.copy(three.camera.quaternion);
@@ -293,6 +310,7 @@ export function PhysicsDriver() {
      */
     let nearest = Infinity;
     let systemExtent = 0;
+    let farthest = 0;
 
     for (let i = 0; i < s.n; i++) {
       if (!s.alive[i]) continue;
@@ -306,11 +324,18 @@ export function PhysicsDriver() {
       // which extends well past the sphere itself.
       const drawn = sceneRefs.scalers[i]?.scale.x ?? 1;
       const extent = v.displayRadius * drawn * (v.luminous ? 6 : 1.4);
-      nearest = Math.min(nearest, three.camera.position.distanceTo(tmp) - extent);
+      const distance = three.camera.position.distanceTo(tmp);
+      nearest = Math.min(nearest, distance - extent);
+      // A body's far side, not just its centre: a black hole's lensing
+      // billboard spans many times its own radius.
+      farthest = Math.max(farthest, distance + extent);
     }
 
     const camDist = three.camera.position.length();
-    const { near, far } = computeClipPlanes(nearest, camDist + systemExtent);
+    const { near, far } = computeClipPlanes(
+      nearest,
+      Math.max(farthest, camDist + systemExtent),
+    );
 
     const cam = three.camera as THREE.PerspectiveCamera;
     if (cam.near !== near || cam.far !== far) {
@@ -355,7 +380,7 @@ export function PhysicsDriver() {
         const v = sceneRefs.visuals[idx];
         if (focusNonce !== frame.current.nonce && v) {
           frame.current.nonce = focusNonce;
-          frame.current.desired = v.displayRadius * 9;
+          frame.current.desired = v.focusDistance;
         }
 
         if (frame.current.desired > 0) {
