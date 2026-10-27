@@ -15,6 +15,7 @@ export function TimeControls() {
   const running = useSimStore((s) => s.running);
   const toggleRunning = useSimStore((s) => s.toggleRunning);
   const restart = useSimStore((s) => s.restart);
+  const fitView = useSimStore((s) => s.fitView);
   const daysPerSecond = useSimStore((s) => s.daysPerSecond);
   const setDaysPerSecond = useSimStore((s) => s.setDaysPerSecond);
   const showTrails = useSimStore((s) => s.showTrails);
@@ -29,6 +30,13 @@ export function TimeControls() {
       </button>
       <button className="btn btn-ghost" onClick={restart}>
         Restart
+      </button>
+      <button
+        className="btn btn-ghost"
+        onClick={fitView}
+        title="Pull back until the whole system is on screen"
+      >
+        Fit view
       </button>
 
       <div className="mx-1 h-7 w-px bg-white/10" />
