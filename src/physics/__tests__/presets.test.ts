@@ -1,15 +1,34 @@
 import { describe, expect, it } from "vitest";
 import { Engine } from "../engine";
-import { G } from "../constants";
+import { G, MASS_RATIO_SUN_OVER, kmToAu, solarRadiiToAu } from "../constants";
 import { centerOfMass, comVelocity, systemRadius } from "../diagnostics";
 import { OutcomeTracker, findEscaping } from "../outcomes";
-import { cloneState, type SimState } from "../types";
+import { cloneState, type BodySpec, type SimState } from "../types";
 import {
   BURRAU_BREAKUP_DAYS,
   FIGURE_EIGHT_PERIOD_DAYS,
   PRESETS,
   preset,
 } from "@/catalog/presets";
+
+function spec(
+  name: string,
+  mass: number,
+  radius: number,
+  position: [number, number, number],
+  velocity: [number, number, number],
+): BodySpec {
+  return {
+    id: name,
+    name,
+    mass,
+    radius,
+    position,
+    velocity,
+    bodyClass: "star",
+    color: "#ffffff",
+  };
+}
 
 /** Sum of per-body displacement from a reference state, AU. */
 function configDistance(s: SimState, ref: Float64Array): number {
@@ -267,11 +286,37 @@ describe("real systems stay stable", () => {
     expect(e.liveCount()).toBe(3);
   });
 
-  it("the Jupiter Trojan keeps its lead on Jupiter", () => {
-    const p = preset("trojan");
-    const e = new Engine(p.bodies, p.settings);
+  /**
+   * Built here rather than loaded from a preset.
+   *
+   * The Jupiter Trojan scenario was dropped from the app's preset list, but
+   * it is the cleanest available check that the engine reproduces a genuine
+   * equilibrium: L4 is stable for this mass ratio, which is why Jupiter
+   * really does carry thousands of asteroids there. Losing the preset should
+   * not mean losing that coverage, so the configuration lives in the test.
+   */
+  it("an asteroid at Jupiter's L4 point keeps its lead indefinitely", () => {
+    const mS = 1;
+    const mJ = 1 / MASS_RATIO_SUN_OVER.jupiter;
+    const M = mS + mJ;
+    const a = 5.2044;
+    const omega = Math.sqrt((G * M) / (a * a * a));
 
-    const angle = (i: number) => Math.atan2(e.state.pos[i * 3 + 1], e.state.pos[i * 3]);
+    const xS = -(mJ / M) * a;
+    const xJ = (mS / M) * a;
+    // Apex of the equilateral triangle standing on the two primaries.
+    const xL4 = (xS + xJ) / 2;
+    const yL4 = (Math.sqrt(3) / 2) * a;
+
+    const bodies: BodySpec[] = [
+      spec("Sun", mS, solarRadiiToAu(1), [xS, 0, 0], [0, omega * xS, 0]),
+      spec("Jupiter", mJ, kmToAu(69911), [xJ, 0, 0], [0, omega * xJ, 0]),
+      spec("Trojan", 1e-11, kmToAu(120), [xL4, yL4, 0], [-omega * yL4, omega * xL4, 0]),
+    ];
+
+    const e = new Engine(bodies, { fixedDt: 1, softening: 0 });
+    const angle = (i: number) =>
+      Math.atan2(e.state.pos[i * 3 + 1], e.state.pos[i * 3]);
     const lead0 = angle(2) - angle(1);
 
     runUntil(e, 365.25 * 100);
@@ -283,7 +328,7 @@ describe("real systems stay stable", () => {
     const deg = (x: number) => ((x * 180) / Math.PI).toFixed(2);
     console.log(`  lead angle: ${deg(lead0)} deg -> ${deg(lead1)} deg after 100 years`);
 
-    // L4 libration is real, so allow some wander, but it must not drift away.
+    // L4 libration is real, so some wander is expected; it must not drift away.
     expect(Math.abs(lead1 - lead0)).toBeLessThan(0.3);
   });
 });
