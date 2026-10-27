@@ -52,6 +52,28 @@ describe("clip planes", () => {
     expect(far).toBeGreaterThan(50);
   });
 
+  it("still shows the scene when the camera is inside a large body", () => {
+    /*
+     * This is what made a black hole disappear entirely.
+     *
+     * Its lensing billboard spans eleven Schwarzschild radii, so flying close
+     * put the camera inside that extent. The near plane went negative, the
+     * fallback made it minuscule, and because the far plane is capped
+     * relative to the near plane it collapsed to a fraction of an AU, clipping
+     * away the very thing being looked at.
+     */
+    for (const [inside, content] of [
+      [-0.24, 0.9],
+      [-120, 500],
+      [-1e-4, 5e-3],
+    ]) {
+      const { near, far } = computeClipPlanes(inside, content);
+      expect(near).toBeGreaterThan(0);
+      expect(far, `inside=${inside} content=${content}`).toBeGreaterThan(content);
+      expect(far / near).toBeLessThanOrEqual(MAX_DEPTH_RATIO * 1.000001);
+    }
+  });
+
   it("survives a system with no bodies left", () => {
     const { near, far } = computeClipPlanes(Infinity, 0);
     expect(near).toBeGreaterThan(0);
