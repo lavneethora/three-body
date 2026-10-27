@@ -48,7 +48,7 @@ export function PhysicsDriver() {
   const last = useRef({ readoutAt: 0, steps: 0, frames: 0 });
   const following = useRef<string | null>(null);
   const frame = useRef({ nonce: -1, desired: 0 });
-  const lastEpoch = useRef(-1);
+  const lastFraming = useRef(-1);
 
 
   useFrame((three, delta) => {
@@ -63,19 +63,19 @@ export function PhysicsDriver() {
       focusId,
       focusNonce,
       bodies,
-      epoch,
+      framingNonce,
       viewDistance,
     } = useSimStore.getState();
     const s = rt.engine.state;
     const now = performance.now();
 
 
-    // Reframe when a different system is loaded. The canvas camera prop only
-    // applies on mount, so without this, switching from a 70 AU system to a
-    // 4 AU one leaves the camera parked where it was and the new system is a
-    // cluster of dots in the middle of the screen.
-    if (epoch !== lastEpoch.current) {
-      lastEpoch.current = epoch;
+    // Reframe when the system itself changes, not on every edit. The canvas
+    // camera prop only applies on mount, so without this, switching from a
+    // 70 AU system to a 4 AU one leaves the camera parked where it was and
+    // the new system is a cluster of dots in the middle of the screen.
+    if (framingNonce !== lastFraming.current) {
+      lastFraming.current = framingNonce;
       frame.current.desired = 0;
       following.current = null;
       offset.copy(three.camera.position);
