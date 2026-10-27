@@ -1,12 +1,17 @@
 import { create } from "zustand";
 import { DEFAULT_SETTINGS, type BodySpec, type SimSettings } from "@/physics/types";
 import { PRESETS, preset } from "@/catalog/presets";
-import { bodyFromCatalog } from "@/catalog/placement";
-import type { CatalogEntry } from "@/catalog";
+import { stateFromOrbit, type OrbitSpec } from "@/catalog/placement";
+import { systemRadius } from "@/physics/diagnostics";
 import { getRuntime, loadSystem } from "@/sim/runtime";
 import type { SharedSystem } from "@/share/url";
 
 export type Quality = "cinematic" | "balanced" | "performance";
+
+/** A body as chosen in the builder, before it is given a place to be. */
+export type NewBody = Omit<BodySpec, "id" | "position" | "velocity">;
+
+let added = 0;
 
 /**
  * Authored configuration, and nothing that moves.
@@ -36,6 +41,13 @@ interface SimStore {
   focusId: string | null;
   /** Bumped on every focus request, which triggers a camera reframe. */
   focusNonce: number;
+  /**
+   * Bumped only when the camera should reframe: a different system, or a new
+   * body that may sit outside the current view. Deliberately not on every
+   * edit, because resetting someone's zoom each time they adjust a mass is
+   * infuriating.
+   */
+  framingNonce: number;
   /** Incremented on every system rebuild, so scene children remount. */
   epoch: number;
 
@@ -47,7 +59,8 @@ interface SimStore {
   setDaysPerSecond: (v: number) => void;
   updateSettings: (patch: Partial<SimSettings>) => void;
   updateBody: (id: string, patch: Partial<BodySpec>) => void;
-  addFromCatalog: (entry: CatalogEntry) => void;
+  addBody: (draft: NewBody, orbit: OrbitSpec) => void;
+  newSystem: () => void;
   removeBody: (id: string) => void;
   select: (id: string | null) => void;
   setFocus: (id: string | null) => void;
@@ -123,6 +136,7 @@ export const useSimStore = create<SimStore>((set, get) => {
     selectedId: null,
     focusId: null,
     focusNonce: 0,
+    framingNonce: 0,
     epoch: 0,
 
     loadPreset: (id) => {
@@ -137,6 +151,7 @@ export const useSimStore = create<SimStore>((set, get) => {
         selectedId: null,
         focusId: null,
         running: true,
+        framingNonce: get().framingNonce + 1,
       });
     },
 
@@ -152,6 +167,7 @@ export const useSimStore = create<SimStore>((set, get) => {
         selectedId: null,
         focusId: null,
         running: true,
+        framingNonce: get().framingNonce + 1,
       });
     },
 
@@ -183,21 +199,63 @@ export const useSimStore = create<SimStore>((set, get) => {
       rebuild(bodies, get().settings, { presetId: null }, true);
     },
 
-    addFromCatalog: (entry) => {
+    addBody: (draft, orbit) => {
       const rt = getRuntime();
-      const current = bakeFromEngine(get().bodies);
       if (!rt) return;
-      const body = bodyFromCatalog(
-        entry,
+
+      const current = bakeFromEngine(get().bodies);
+      const { position, velocity } = stateFromOrbit(
         rt.engine.state,
-        current.map((b) => b.name),
+        orbit,
+        draft.mass,
       );
+
+      // Two Jupiters in one system should not both just be called Jupiter.
+      let name = draft.name;
+      let n = 2;
+      while (current.some((b) => b.name === name)) name = `${draft.name} ${n++}`;
+
+      const body: BodySpec = {
+        ...draft,
+        name,
+        id: `b${++added}`,
+        position,
+        velocity,
+      };
+
       rebuild(
         [...current, body],
         get().settings,
         { presetId: null, selectedId: body.id },
         true,
       );
+
+      // Frame the system as it now stands, including the far side of the new
+      // body's orbit, so a world added on a wide or eccentric path is not
+      // left outside the view.
+      const after = getRuntime();
+      if (after) {
+        const apoapsis = orbit.semiMajorAxis * (1 + orbit.eccentricity);
+        const extent = Math.max(systemRadius(after.engine.state), apoapsis);
+        set((s) => ({
+          viewDistance: Math.max(extent * 2.2, 0.3),
+          framingNonce: s.framingNonce + 1,
+        }));
+      }
+    },
+
+    /** An empty canvas to build on. */
+    newSystem: () => {
+      rebuild([], get().settings, {
+        presetId: null,
+        initialBodies: [],
+        viewDistance: 4,
+        daysPerSecond: 60,
+        selectedId: null,
+        focusId: null,
+        running: true,
+        framingNonce: get().framingNonce + 1,
+      });
     },
 
     removeBody: (id) => {
