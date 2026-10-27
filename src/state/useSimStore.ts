@@ -48,6 +48,13 @@ interface SimStore {
    * infuriating.
    */
   framingNonce: number;
+  /**
+   * Bumped to pull the camera back until the whole system is on screen.
+   * Separate from framingNonce because the distance is worked out in the
+   * renderer, which is the only place that knows how large bodies are drawn
+   * and what the field of view is.
+   */
+  fitNonce: number;
   /** Incremented on every system rebuild, so scene children remount. */
   epoch: number;
 
@@ -61,6 +68,7 @@ interface SimStore {
   updateBody: (id: string, patch: Partial<BodySpec>) => void;
   addBody: (draft: NewBody, orbit: OrbitSpec) => void;
   newSystem: () => void;
+  fitView: () => void;
   removeBody: (id: string) => void;
   select: (id: string | null) => void;
   setFocus: (id: string | null) => void;
@@ -137,6 +145,7 @@ export const useSimStore = create<SimStore>((set, get) => {
     focusId: null,
     focusNonce: 0,
     framingNonce: 0,
+    fitNonce: 0,
     epoch: 0,
 
     loadPreset: (id) => {
@@ -271,6 +280,10 @@ export const useSimStore = create<SimStore>((set, get) => {
         true,
       );
     },
+
+    /** Pull back far enough to see everything, and stop following. */
+    fitView: () =>
+      set((s) => ({ focusId: null, fitNonce: s.fitNonce + 1 })),
 
     select: (selectedId) => set({ selectedId }),
     setFocus: (focusId) => set((s) => ({ focusId, focusNonce: s.focusNonce + 1 })),
