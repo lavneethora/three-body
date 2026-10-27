@@ -23,7 +23,6 @@
     "zustand": "^5.0.16"
   },
   "devDependencies": {
-    "@rolldown/binding-darwin-arm64": "^1.2.15",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
@@ -33,5 +32,8 @@
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
     "vitest": "^5.0.5"
+  },
+  "optionalDependencies": {
+    "@rolldown/binding-darwin-arm64": "^1.2.15"
   }
 }
