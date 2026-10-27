@@ -36,6 +36,7 @@ export function MobileShell({ onAdd }: { onAdd: () => void }) {
 
   const presetId = useSimStore((s) => s.presetId);
   const loadPreset = useSimStore((s) => s.loadPreset);
+  const newSystem = useSimStore((s) => s.newSystem);
   const running = useSimStore((s) => s.running);
   const toggleRunning = useSimStore((s) => s.toggleRunning);
   const restart = useSimStore((s) => s.restart);
@@ -159,6 +160,23 @@ export function MobileShell({ onAdd }: { onAdd: () => void }) {
                       </span>
                     </button>
                   ))}
+                  <button
+                    className="col-span-2 rounded-[14px] border border-white/15 bg-white/8 px-3 py-3 text-left"
+                    onClick={() => {
+                      newSystem();
+                      setTab(null);
+                      onAdd();
+                    }}
+                  >
+                    <span className="block text-[14px] font-medium text-white">
+                      Build your own
+                    </span>
+                    <span className="mt-1 block text-[11px] leading-snug text-white/45">
+                      Start from nothing. Pick real objects or invent them, and
+                      choose the orbits yourself.
+                    </span>
+                  </button>
+
                   <button
                     className="col-span-2 btn btn-ghost h-11 w-full justify-center text-[13px]"
                     onClick={restart}
