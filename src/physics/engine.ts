@@ -42,7 +42,8 @@ export class Engine {
   state: SimState;
   settings: SimSettings;
   readonly mergeEvents: MergeEvent[] = [];
-  readonly initialEnergy: number;
+  /** Baseline for the drift readout. Re-set after a merge; see step(). */
+  initialEnergy: number;
 
   private accel: Float64Array;
   /** Simulation time requested but not yet consumed by a whole step. */
@@ -88,7 +89,23 @@ export class Engine {
     const dt = this.nextDt();
     integrate(this.state, dt, this.settings.softening, this.accel, this.settings.integrator);
     if (this.settings.collisions) {
-      resolveCollisions(this.state, this.settings.collisionScale, this.mergeEvents);
+      const merged = resolveCollisions(
+        this.state,
+        this.settings.collisionScale,
+        this.mergeEvents,
+      );
+      if (merged > 0) {
+        /*
+         * Re-baseline the energy after a merge.
+         *
+         * A merge is inelastic: mass and momentum carry over but energy does
+         * not, so the total genuinely changes at that instant. Left alone,
+         * the drift readout would report a permanent error of order one and
+         * look like the integrator had fallen apart, when all that happened
+         * is two bodies hit each other.
+         */
+        this.initialEnergy = totalEnergy(this.state, this.settings.softening);
+      }
     }
     if (this.onSample && this.sampleInterval > 0 && this.state.time >= this.nextSampleAt) {
       this.onSample(this.state);
