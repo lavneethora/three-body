@@ -12,6 +12,14 @@ export interface BodyVisual {
   luminous: boolean;
   /** Relative to the Sun, from radius and temperature. */
   luminosity: number;
+  /**
+   * How far back the camera should sit to frame this body.
+   *
+   * Usually a few radii. A black hole needs far more: what you want to see
+   * is its lensed image, which spans many times the hole itself, and framing
+   * it like a sphere puts the camera inside its own billboard.
+   */
+  focusDistance: number;
   /** Linear RGB, already converted from temperature for stars. */
   color: [number, number, number];
 }
@@ -36,6 +44,8 @@ export const sceneRefs = {
   planetMaterials: [] as (ShaderMaterial | null)[],
   atmosphereMaterials: [] as (ShaderMaterial | null)[],
   glowMeshes: [] as (Mesh | null)[],
+  blackHoleMeshes: [] as (Mesh | null)[],
+  blackHoleMaterials: [] as (ShaderMaterial | null)[],
   markers: [] as (Mesh | null)[],
   glowMaterials: [] as (ShaderMaterial | null)[],
   visuals: [] as (BodyVisual | null)[],
@@ -52,6 +62,8 @@ export function resetSceneRefs(count: number): void {
   sceneRefs.planetMaterials = new Array(count).fill(null);
   sceneRefs.atmosphereMaterials = new Array(count).fill(null);
   sceneRefs.glowMeshes = new Array(count).fill(null);
+  sceneRefs.blackHoleMeshes = new Array(count).fill(null);
+  sceneRefs.blackHoleMaterials = new Array(count).fill(null);
   sceneRefs.markers = new Array(count).fill(null);
   sceneRefs.glowMaterials = new Array(count).fill(null);
   sceneRefs.visuals = new Array(count).fill(null);
