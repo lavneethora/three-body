@@ -104,6 +104,18 @@ export function SystemBuilder({ onClose }: { onClose: () => void }) {
     const state = getRuntime()?.engine.state;
     const primary = state ? heaviestBody(state) : 0;
     const extent = state ? systemRadius(state) : 1;
+    /*
+     * Clear of the surface of the thing being orbited.
+     *
+     * Bodies merge when they are within the sum of their radii, and a
+     * supergiant is several AU across: Betelgeuse's is 3.55. The 1 AU below
+     * reads as a sensible default only because the Sun is 0.005 AU wide, and
+     * around anything genuinely large it starts the new body underneath the
+     * surface, where it is absorbed on the first step.
+     */
+    const clearance = state
+      ? (state.radius[Math.max(primary, 0)] + body.radius) * 3
+      : 0;
 
     setDraft(body);
     setOrbit({
@@ -111,7 +123,7 @@ export function SystemBuilder({ onClose }: { onClose: () => void }) {
       primary: Math.max(primary, 0),
       // Outside everything already there, or 1 AU for a system that is
       // still just a star, since that is the distance people have a feel for.
-      semiMajorAxis: Math.max(extent * 1.6, 1),
+      semiMajorAxis: Math.max(extent * 1.6, clearance, 1),
       // Spread repeated additions around rather than stacking them up.
       phase: (bodies.length * 2.399963) % (Math.PI * 2),
     });
