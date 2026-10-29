@@ -11,6 +11,7 @@ import {
 import { AU_KM, M_EARTH, M_JUPITER, solarRadiiToAu } from "@/physics/constants";
 import { systemRadius } from "@/physics/diagnostics";
 import type { BodyClass } from "@/physics/types";
+import { displayRadius } from "@/scene/scale";
 import { getRuntime } from "@/sim/runtime";
 import { useSimStore, type NewBody } from "@/state/useSimStore";
 import { formatMass, formatTime } from "./format";
@@ -72,6 +73,7 @@ const BLANK: NewBody = {
 export function SystemBuilder({ onClose }: { onClose: () => void }) {
   const bodies = useSimStore((s) => s.bodies);
   const addBody = useSimStore((s) => s.addBody);
+  const exaggeration = useSimStore((s) => s.exaggeration);
 
   const [tab, setTab] = useState<Tab>("star");
   const [query, setQuery] = useState("");
@@ -105,16 +107,24 @@ export function SystemBuilder({ onClose }: { onClose: () => void }) {
     const primary = state ? heaviestBody(state) : 0;
     const extent = state ? systemRadius(state) : 1;
     /*
-     * Clear of the surface of the thing being orbited.
+     * Far enough out that the two read as separate things on screen.
      *
-     * Bodies merge when they are within the sum of their radii, and a
-     * supergiant is several AU across: Betelgeuse's is 3.55. The 1 AU below
-     * reads as a sensible default only because the Sun is 0.005 AU wide, and
-     * around anything genuinely large it starts the new body underneath the
-     * surface, where it is absorbed on the first step.
+     * The test has to be the drawn radius, not the physical one. Radii are
+     * exaggerated 25x so that a real planet is not a sub-pixel dot, which
+     * puts Betelgeuse's drawn edge at 89 AU against a true 3.55. Clearing
+     * only the real surface stops the two merging but still buries the
+     * planet inside the star as far as the eye is concerned, which is the
+     * same confusing result by a different route.
      */
-    const clearance = state
-      ? (state.radius[Math.max(primary, 0)] + body.radius) * 3
+    const runtime = getRuntime();
+    const primaryIndex = Math.max(primary, 0);
+    const primarySpec = bodies[primaryIndex];
+    const drawn = (radius: number, bodyClass: BodyClass) =>
+      displayRadius(radius, bodyClass, exaggeration, runtime?.initialRadius ?? 0);
+    const clearance = primarySpec
+      ? (drawn(primarySpec.radius, primarySpec.bodyClass) +
+          drawn(body.radius, body.bodyClass)) *
+        2
       : 0;
 
     setDraft(body);
