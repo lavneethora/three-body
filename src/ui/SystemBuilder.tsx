@@ -10,7 +10,7 @@ import {
 } from "@/catalog/placement";
 import { AU_KM, M_EARTH, M_JUPITER, solarRadiiToAu } from "@/physics/constants";
 import { systemRadius } from "@/physics/diagnostics";
-import type { BodyClass } from "@/physics/types";
+import type { BodyClass, BodySpec } from "@/physics/types";
 import { displayRadius } from "@/scene/scale";
 import { getRuntime } from "@/sim/runtime";
 import { useSimStore, type NewBody } from "@/state/useSimStore";
@@ -18,6 +18,38 @@ import { formatMass, formatTime } from "./format";
 import { NumberField, type Unit } from "./primitives/NumberField";
 
 type Tab = CatalogEntry["group"] | "custom";
+
+/**
+ * Distance at which a new body clears the one it orbits on screen.
+ *
+ * Drawn radii, not physical ones. Radii are exaggerated 25x so that a real
+ * planet is not a sub-pixel dot, which puts Betelgeuse's drawn edge at 89 AU
+ * against a true 3.55. Clearing only the real surface stops the two merging
+ * but still buries the planet inside the star as far as the eye is
+ * concerned, which is the same confusing result by a different route.
+ *
+ * Shared by the default distance and the hint under the field so the number
+ * the user is told cannot drift from the one they are given.
+ */
+function clearanceAu(
+  primary: BodySpec | undefined,
+  body: NewBody,
+  exaggeration: number,
+  systemExtent: number,
+): number {
+  if (!primary) return 0;
+  const drawn = (radius: number, bodyClass: BodyClass) =>
+    displayRadius(radius, bodyClass, exaggeration, systemExtent);
+  return (
+    (drawn(primary.radius, primary.bodyClass) + drawn(body.radius, body.bodyClass)) * 2
+  );
+}
+
+function formatAu(au: number): string {
+  if (au >= 10) return String(Math.round(au));
+  if (au >= 1) return au.toFixed(1);
+  return au.toFixed(2);
+}
 
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: "star", label: "Stars" },
@@ -106,26 +138,14 @@ export function SystemBuilder({ onClose }: { onClose: () => void }) {
     const state = getRuntime()?.engine.state;
     const primary = state ? heaviestBody(state) : 0;
     const extent = state ? systemRadius(state) : 1;
-    /*
-     * Far enough out that the two read as separate things on screen.
-     *
-     * The test has to be the drawn radius, not the physical one. Radii are
-     * exaggerated 25x so that a real planet is not a sub-pixel dot, which
-     * puts Betelgeuse's drawn edge at 89 AU against a true 3.55. Clearing
-     * only the real surface stops the two merging but still buries the
-     * planet inside the star as far as the eye is concerned, which is the
-     * same confusing result by a different route.
-     */
-    const runtime = getRuntime();
+    // Start it far enough out that the two read as separate things.
     const primaryIndex = Math.max(primary, 0);
-    const primarySpec = bodies[primaryIndex];
-    const drawn = (radius: number, bodyClass: BodyClass) =>
-      displayRadius(radius, bodyClass, exaggeration, runtime?.initialRadius ?? 0);
-    const clearance = primarySpec
-      ? (drawn(primarySpec.radius, primarySpec.bodyClass) +
-          drawn(body.radius, body.bodyClass)) *
-        2
-      : 0;
+    const clearance = clearanceAu(
+      bodies[primaryIndex],
+      body,
+      exaggeration,
+      getRuntime()?.initialRadius ?? 0,
+    );
 
     setDraft(body);
     setOrbit({
@@ -347,6 +367,18 @@ function OrbitStep({
   onAdd: () => void;
 }) {
   const bodies = useSimStore((s) => s.bodies);
+  const exaggeration = useSimStore((s) => s.exaggeration);
+
+  // Recomputed from the primary currently chosen above, not the one picked
+  // when the body was first selected, so changing it updates the advice.
+  const clearance = clearanceAu(
+    bodies[orbit.primary],
+    draft,
+    exaggeration,
+    getRuntime()?.initialRadius ?? 0,
+  );
+  const inside = clearance > 0 && orbit.semiMajorAxis < clearance;
+  const primaryName = bodies[orbit.primary]?.name ?? "it";
 
   return (
     <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
@@ -371,7 +403,18 @@ function OrbitStep({
         units={[{ label: "AU", factor: 1 }]}
         min={1e-6}
         onCommit={(semiMajorAxis) => setOrbit({ ...orbit, semiMajorAxis })}
-        hint="Semi-major axis. Earth sits at 1 AU, Neptune at 30."
+        hint={
+          <>
+            Semi-major axis. Earth sits at 1 AU, Neptune at 30.
+            {(inside || clearance > 1) && (
+              <span className={inside ? "text-amber-300/80" : undefined}>
+                {inside
+                  ? ` Inside ${primaryName} as it is drawn. Clear of it from ${formatAu(clearance)} AU.`
+                  : ` Clear of ${primaryName} from ${formatAu(clearance)} AU.`}
+              </span>
+            )}
+          </>
+        }
       />
 
       <Slider
