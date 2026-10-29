@@ -9,6 +9,7 @@ import { useSimStore } from "@/state/useSimStore";
 import { useReadoutStore } from "@/state/useReadoutStore";
 import { MAX_LIGHTS, MAX_OCCLUDERS } from "./shaders/planet";
 import { computeClipPlanes } from "./clipPlanes";
+import { DARK_REACH, LUMINOUS_REACH } from "./scale";
 import { BLACK_HOLE_QUAD_RADII } from "./Bodies";
 
 const MAX_STEPS_PER_FRAME = 20_000;
@@ -325,7 +326,8 @@ export function PhysicsDriver() {
       // How far the drawn body reaches, including its corona billboard,
       // which extends well past the sphere itself.
       const drawn = sceneRefs.scalers[i]?.scale.x ?? 1;
-      const extent = v.displayRadius * drawn * (v.luminous ? 6 : 1.4);
+      const extent =
+        v.displayRadius * drawn * (v.luminous ? LUMINOUS_REACH : DARK_REACH);
       const distance = three.camera.position.distanceTo(tmp);
       nearest = Math.min(nearest, distance - extent);
       // A body's far side, not just its centre: a black hole's lensing
