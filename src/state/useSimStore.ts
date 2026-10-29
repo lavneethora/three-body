@@ -3,6 +3,7 @@ import { DEFAULT_SETTINGS, type BodySpec, type SimSettings } from "@/physics/typ
 import { PRESETS, preset } from "@/catalog/presets";
 import { stateFromOrbit, type OrbitSpec } from "@/catalog/placement";
 import { systemRadius } from "@/physics/diagnostics";
+import { drawnExtent } from "@/scene/scale";
 import { getRuntime, loadSystem } from "@/sim/runtime";
 import type { SharedSystem } from "@/share/url";
 
@@ -245,7 +246,17 @@ export const useSimStore = create<SimStore>((set, get) => {
       const after = getRuntime();
       if (after) {
         const apoapsis = orbit.semiMajorAxis * (1 + orbit.eccentricity);
-        const extent = Math.max(systemRadius(after.engine.state), apoapsis);
+        const orbital = Math.max(systemRadius(after.engine.state), apoapsis);
+        // A body can be drawn far larger than the orbit it sits on, so the
+        // framing takes the larger of the two. Without this, adding
+        // Betelgeuse (drawn 89 AU across) left the camera 3 AU from the
+        // centre, which is inside it.
+        const drawn = drawnExtent(
+          get().bodies,
+          get().exaggeration,
+          after.initialRadius,
+        );
+        const extent = Math.max(orbital, drawn);
         set((s) => ({
           viewDistance: Math.max(extent * 2.2, 0.3),
           framingNonce: s.framingNonce + 1,
