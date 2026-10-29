@@ -33,6 +33,22 @@ let version = 0;
 
 export const TRAIL_CAPACITY = 2048;
 
+/**
+ * Stand-in extent for a system that has none of its own: one body, or
+ * several stacked at the same point.
+ *
+ * A zero extent used to fall back to 1e-6 AU, which guards against dividing
+ * by zero rather than naming a scale anything can be drawn at. Everything
+ * downstream reads this as the size of the system, the drawn radius floor
+ * included, and a black hole's true radius is 2e-7 AU, so a lone one was
+ * drawn at the renderer's minimum pixel size and held there at every camera
+ * distance. Zooming in never made it any bigger.
+ *
+ * Three AU is a convention, picked because it puts the drawn radius at
+ * 0.036 AU against the 3 AU the camera is framed at for a single body.
+ */
+const LONE_BODY_EXTENT = 3;
+
 export function loadSystem(
   bodies: BodySpec[],
   settings: Partial<SimSettings>,
@@ -46,7 +62,8 @@ export function loadSystem(
 ): Runtime {
   const engine = new Engine(bodies, settings);
   engine.state.time = startTime;
-  const initialRadius = Math.max(systemRadius(engine.state), 1e-6);
+  const extent = systemRadius(engine.state);
+  const initialRadius = extent > 0 ? extent : LONE_BODY_EXTENT;
 
   // Characteristic orbital time for a system this size and this heavy. It
   // sets both how long to watch before judging stability and how often to
