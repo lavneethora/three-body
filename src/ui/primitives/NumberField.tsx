@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 export interface Unit {
   label: string;
@@ -32,7 +32,7 @@ export function NumberField({
   units?: Unit[];
   unitIndex?: number;
   onUnitChange?: (index: number) => void;
-  hint?: string;
+  hint?: ReactNode;
   min?: number;
 }) {
   const factor = units ? units[unitIndex].factor : 1;
